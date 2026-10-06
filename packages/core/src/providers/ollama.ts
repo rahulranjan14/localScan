@@ -285,9 +285,19 @@ export class OllamaProvider implements LlmProvider {
 /**
  * Ollama accepts a JSON Schema object. Zod emits one with a `$schema` key that
  * Ollama does not expect, so it is removed.
+ *
+ * `io: 'output'` rather than `'input'`, and the difference is not cosmetic. On
+ * the input side a field with a default is *optional*, so the generated grammar
+ * lets the model omit it — and a model asked for 25 fields it may skip will
+ * answer the easy ones and stop. On the output side those fields are required,
+ * so every key must be emitted with either a value or an explicit null.
+ *
+ * Requiring the key is what makes the model look for the value. Observed
+ * directly: the input-side schema produced an invoice with vendor, buyer and
+ * extras filled in and no invoice number, date, total or line items at all.
  */
 export function toOllamaJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  const jsonSchema = z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown>
+  const jsonSchema = z.toJSONSchema(schema, { io: 'output' }) as Record<string, unknown>
   const { $schema: _ignored, ...rest } = jsonSchema
   return rest
 }

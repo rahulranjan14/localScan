@@ -65,7 +65,17 @@ export const InvoiceSchema = z.object({
    *
    * Without this, a field the document actually contains is silently dropped on
    * validation, and the loss is invisible — the output still looks complete.
+   *
+   * A list of pairs rather than a record, and bounded, for the same reason
+   * `lineItems` is bounded: a record is an open-ended object in the generated
+   * grammar, so constrained decoding never reaches a state where it must stop.
+   * A travel invoice sent this into a loop that emitted keys like
+   * "Airline Airline Travel Date" until it was killed at the token ceiling. An
+   * array with a maximum puts the stop condition where the decoder can see it.
    */
-  extraFields: z.record(z.string(), z.string()).default({}),
+  extraFields: z
+    .array(z.object({ key: z.string().max(120), value: z.string().max(2000) }))
+    .max(25)
+    .default([]),
 })
 export type Invoice = z.infer<typeof InvoiceSchema>
