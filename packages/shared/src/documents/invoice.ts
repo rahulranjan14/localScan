@@ -43,7 +43,16 @@ export const InvoiceSchema = z.object({
   vendor: PartySchema,
   buyer: PartySchema,
 
-  lineItems: z.array(LineItemSchema).default([]),
+  /**
+   * Bounded deliberately.
+   *
+   * The limit is not about plausible invoice sizes — it is about the grammar.
+   * An unbounded array gives constrained decoding no reason to ever stop, so a
+   * model that falls into a repetition loop emits line items until it is killed
+   * from outside. A maximum puts the stop condition in the schema itself, where
+   * the decoder can see it, rather than relying on a token cap to cut it off.
+   */
+  lineItems: z.array(LineItemSchema).max(200).default([]),
 
   subtotal: nullableNumber,
   taxTotal: nullableNumber,

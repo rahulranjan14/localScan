@@ -15,6 +15,16 @@ export interface ChatOptions {
    * silently -- the response looks complete and is simply missing the tail.
    */
   contextWindow?: number
+  /**
+   * Hard ceiling on generated tokens.
+   *
+   * Not an optimisation. Constrained decoding against a schema containing an
+   * unbounded array lets a model that falls into a repetition loop generate
+   * forever -- there is no stop condition the grammar can reach. Without this
+   * the only thing that ends the request is the timeout, by which point minutes
+   * are gone and the output is discarded anyway.
+   */
+  maxOutputTokens?: number
   signal?: AbortSignal
 }
 
@@ -55,14 +65,38 @@ export class ProviderError extends Error {
   }
 }
 
-/** The provider host did not answer at all, as distinct from answering badly. */
+/** Nothing accepted the connection: wrong host, wrong port, or nothing running. */
 export class ProviderUnreachableError extends ProviderError {
   constructor(
     readonly baseUrl: string,
     cause?: unknown,
   ) {
-    super(`Inference host did not respond at ${baseUrl}`, cause)
+    super(`Could not connect to the inference host at ${baseUrl}`, cause)
     this.name = 'ProviderUnreachableError'
+  }
+}
+
+/**
+ * The host accepted the connection and was still working when we gave up.
+ *
+ * Kept distinct from `ProviderUnreachableError` on purpose. They look alike from
+ * the call site -- no response either way -- but they mean opposite things: one
+ * says the machine is not there, the other says it is there and the work is
+ * genuinely slow. Collapsing them sends you to check the network when what you
+ * actually need is a longer timeout or a smaller request.
+ */
+export class ProviderTimeoutError extends ProviderError {
+  constructor(
+    readonly baseUrl: string,
+    readonly timeoutMs: number,
+    cause?: unknown,
+  ) {
+    super(
+      `Inference host at ${baseUrl} accepted the request but did not finish within ` +
+        `${Math.round(timeoutMs / 1000)}s`,
+      cause,
+    )
+    this.name = 'ProviderTimeoutError'
   }
 }
 

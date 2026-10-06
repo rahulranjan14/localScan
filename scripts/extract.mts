@@ -28,6 +28,8 @@ const { values, positionals } = parseArgs({
   options: {
     'base-url': { type: 'string', default: 'http://127.0.0.1:11434' },
     model: { type: 'string', default: 'qwen2.5:3b' },
+    timeout: { type: 'string', default: '300' },
+    'max-tokens': { type: 'string', default: '2048' },
   },
 })
 
@@ -64,16 +66,28 @@ if (!usable) {
 const text = joinPages(textLayer.pages)
 console.log(dim(`  ${text.length} characters extracted`))
 
-const provider = new OllamaProvider({ model: values.model!, baseUrl: values['base-url']! })
+const timeoutMs = Number(values.timeout) * 1000
+const provider = new OllamaProvider({
+  model: values.model!,
+  baseUrl: values['base-url']!,
+  timeoutMs,
+})
 const promptTemplate = await loadPrompt('invoice')
 
-step(`extracting with ${values.model} …`)
+step(`extracting with ${values.model} … (timeout ${values.timeout}s, max ${values['max-tokens']} tokens)`)
+
+// Progress ticks, because a silent multi-minute wait is indistinguishable from
+// a hang -- which is exactly how the first run of this looked.
+const tick = setInterval(() => process.stdout.write(dim('.')), 5000)
 const result = await extractStructured({
   provider,
   schema: InvoiceSchema,
   promptTemplate,
   text,
+  maxOutputTokens: Number(values['max-tokens']),
 })
+clearInterval(tick)
+process.stdout.write('\n')
 
 if (result.injection.matched.length > 0) {
   // Reported, not acted on. The document is processed either way (FR-11.2).

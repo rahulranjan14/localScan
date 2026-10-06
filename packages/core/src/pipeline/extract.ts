@@ -9,6 +9,7 @@ export interface ExtractInput<T> {
   promptTemplate: string
   text: string
   contextWindow?: number
+  maxOutputTokens?: number
   signal?: AbortSignal
 }
 
@@ -37,6 +38,7 @@ export async function extractStructured<T>(input: ExtractInput<T>): Promise<Extr
       // setting was the largest accuracy improvement made to the project.
       temperature: 0,
       ...(input.contextWindow !== undefined ? { contextWindow: input.contextWindow } : {}),
+      ...(input.maxOutputTokens !== undefined ? { maxOutputTokens: input.maxOutputTokens } : {}),
       ...(input.signal ? { signal: input.signal } : {}),
     })
     return { ok: true, data, injection, durationMs: Date.now() - started }

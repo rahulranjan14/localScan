@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   ModelNotInstalledError,
   ProviderError,
+  ProviderTimeoutError,
   ProviderUnreachableError,
   type ChatOptions,
   type LlmProvider,
@@ -22,6 +23,15 @@ const DEFAULT_CONTEXT_WINDOW = 8192
 
 /** Long enough for a cold model load on CPU, which can take tens of seconds. */
 const DEFAULT_TIMEOUT_MS = 300_000
+
+/**
+ * Generous for a filled invoice (a few hundred tokens) and still a hard stop.
+ *
+ * The failure this prevents is specific: a schema with an unbounded array gives
+ * a repetition loop nowhere to terminate, so the model emits line items until
+ * something external intervenes. Without a cap that something is the timeout.
+ */
+const DEFAULT_MAX_OUTPUT_TOKENS = 2048
 
 /** Cheap checks must stay cheap -- they run on a 30s poll (FR-9.4). */
 const PING_TIMEOUT_MS = 3_000
@@ -173,6 +183,7 @@ export class OllamaProvider implements LlmProvider {
       options: {
         temperature: options.temperature ?? 0,
         num_ctx: options.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
+        num_predict: options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       },
     }
   }
@@ -199,9 +210,12 @@ export class OllamaProvider implements LlmProvider {
     try {
       response = await fetch(url, { ...init, signal })
     } catch (cause) {
-      // A refused connection and a timeout are the same thing to the caller:
-      // the host is not answering. What matters is reporting the URL tried,
-      // so the user can see which machine is unreachable (FR-9.3).
+      // Which of these it is determines what the user should do, so they must
+      // not be collapsed: a timeout means the host is working and too slow, an
+      // unreachable host means it is not there at all (FR-9.3).
+      if (timeout.aborted) {
+        throw new ProviderTimeoutError(this.baseUrl, timeoutMs, cause)
+      }
       throw new ProviderUnreachableError(this.baseUrl, cause)
     }
 
