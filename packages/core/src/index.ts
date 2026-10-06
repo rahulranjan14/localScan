@@ -1,2 +1,7 @@
 export * from './providers/types.js'
 export * from './providers/ollama.js'
+export * from './guards/input.js'
+export * from './guards/prompt.js'
+export * from './pdf/textLayer.js'
+export * from './documents/prompts.js'
+export * from './pipeline/extract.js'
