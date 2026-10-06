@@ -1,6 +1,7 @@
 import type { ModelCapabilities, StructuredOutputTier } from '@ocr/shared'
 import { z } from 'zod'
 import {
+  type GenerationUsage,
   ModelNotInstalledError,
   ProviderError,
   ProviderTimeoutError,
@@ -39,6 +40,34 @@ const PING_TIMEOUT_MS = 3_000
 interface OllamaGenerateResponse {
   response?: string
   error?: string
+  done_reason?: string
+  prompt_eval_count?: number
+  eval_count?: number
+  eval_duration?: number
+  load_duration?: number
+  total_duration?: number
+}
+
+/** Ollama reports durations in nanoseconds. */
+function nsToMs(ns: number | undefined): number | null {
+  return typeof ns === 'number' ? Math.round(ns / 1e6) : null
+}
+
+function readUsage(r: OllamaGenerateResponse): GenerationUsage {
+  const evalMs = nsToMs(r.eval_duration)
+  const outputTokens = r.eval_count ?? null
+  return {
+    promptTokens: r.prompt_eval_count ?? null,
+    outputTokens,
+    stoppedBecause:
+      r.done_reason === 'stop' ? 'stop' : r.done_reason === 'length' ? 'length' : 'unknown',
+    outputTokensPerSecond:
+      outputTokens !== null && evalMs !== null && evalMs > 0
+        ? Math.round((outputTokens / evalMs) * 1000 * 10) / 10
+        : null,
+    totalMs: nsToMs(r.total_duration),
+    loadMs: nsToMs(r.load_duration),
+  }
 }
 
 interface OllamaTagsResponse {
@@ -75,6 +104,7 @@ export class OllamaProvider implements LlmProvider {
   async chat(options: ChatOptions): Promise<string> {
     const body = this.generateBody(options)
     const result = await this.post<OllamaGenerateResponse>('/api/generate', body, options.signal)
+    options.onUsage?.(readUsage(result))
     return result.response ?? ''
   }
 
@@ -93,7 +123,20 @@ export class OllamaProvider implements LlmProvider {
     }
 
     const result = await this.post<OllamaGenerateResponse>('/api/generate', body, options.signal)
+    const usage = readUsage(result)
+    options.onUsage?.(usage)
     const raw = result.response ?? ''
+
+    // Hitting the ceiling means the JSON is cut mid-token. Saying so is far
+    // more useful than the parse error that follows, which only reports that
+    // the text is malformed and not why.
+    if (usage.stoppedBecause === 'length') {
+      throw new ProviderError(
+        `Model "${this.model}" was still generating at the ${usage.outputTokens}-token ceiling. ` +
+          `The output is truncated, so it cannot be valid JSON. This is usually a repetition ` +
+          `loop rather than a document that is genuinely too large.`,
+      )
+    }
 
     let parsed: unknown
     try {

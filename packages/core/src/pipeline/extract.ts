@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { LlmProvider } from '../providers/types.js'
+import type { GenerationUsage, LlmProvider } from '../providers/types.js'
 import { renderPrompt, scanForInjection, type InjectionScan } from '../guards/prompt.js'
 
 export interface ExtractInput<T> {
@@ -11,6 +11,7 @@ export interface ExtractInput<T> {
   contextWindow?: number
   maxOutputTokens?: number
   signal?: AbortSignal
+  onUsage?: (usage: GenerationUsage) => void
 }
 
 export type ExtractOutcome<T> =
@@ -40,6 +41,7 @@ export async function extractStructured<T>(input: ExtractInput<T>): Promise<Extr
       ...(input.contextWindow !== undefined ? { contextWindow: input.contextWindow } : {}),
       ...(input.maxOutputTokens !== undefined ? { maxOutputTokens: input.maxOutputTokens } : {}),
       ...(input.signal ? { signal: input.signal } : {}),
+      ...(input.onUsage ? { onUsage: input.onUsage } : {}),
     })
     return { ok: true, data, injection, durationMs: Date.now() - started }
   } catch (error) {

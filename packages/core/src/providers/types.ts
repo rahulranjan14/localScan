@@ -26,6 +26,28 @@ export interface ChatOptions {
    */
   maxOutputTokens?: number
   signal?: AbortSignal
+  /**
+   * Reports what the request actually cost. Optional, but the difference
+   * between "this model is slow" and "this model never stopped" is only
+   * visible here (see `GenerationUsage.stoppedBecause`).
+   */
+  onUsage?: (usage: GenerationUsage) => void
+}
+
+export interface GenerationUsage {
+  promptTokens: number | null
+  outputTokens: number | null
+  /**
+   * `stop` means the model finished on its own. `length` means it was cut off
+   * at the token ceiling, which is the signature of a runaway generation and
+   * means the output is almost certainly truncated and unparseable.
+   */
+  stoppedBecause: 'stop' | 'length' | 'unknown'
+  /** Generation only, excluding model load. */
+  outputTokensPerSecond: number | null
+  totalMs: number | null
+  /** Cold-load cost, which dominates a first request and nothing after it. */
+  loadMs: number | null
 }
 
 export interface StructuredOptions<T> extends ChatOptions {

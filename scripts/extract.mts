@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto'
 import { parseArgs } from 'node:util'
 import { InvoiceSchema } from '@ocr/shared'
 import {
+  type GenerationUsage,
   OllamaProvider,
   extractStructured,
   hasUsableTextLayer,
@@ -79,15 +80,32 @@ step(`extracting with ${values.model} … (timeout ${values.timeout}s, max ${val
 // Progress ticks, because a silent multi-minute wait is indistinguishable from
 // a hang -- which is exactly how the first run of this looked.
 const tick = setInterval(() => process.stdout.write(dim('.')), 5000)
+
+let usage: GenerationUsage | null = null
 const result = await extractStructured({
   provider,
   schema: InvoiceSchema,
   promptTemplate,
   text,
   maxOutputTokens: Number(values['max-tokens']),
+  onUsage: (u) => {
+    usage = u
+  },
 })
 clearInterval(tick)
 process.stdout.write('\n')
+
+if (usage) {
+  const u = usage as GenerationUsage
+  console.log(
+    dim(
+      `  ${u.promptTokens ?? '?'} prompt + ${u.outputTokens ?? '?'} output tokens` +
+        ` · ${u.outputTokensPerSecond ?? '?'} tok/s` +
+        ` · model load ${u.loadMs !== null ? (u.loadMs / 1000).toFixed(1) + 's' : '?'}` +
+        ` · stopped: ${u.stoppedBecause}`,
+    ),
+  )
+}
 
 if (result.injection.matched.length > 0) {
   // Reported, not acted on. The document is processed either way (FR-11.2).
