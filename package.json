@@ -13,6 +13,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc --build --force",
+    "check:inference": "tsx scripts/check-inference.mts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
