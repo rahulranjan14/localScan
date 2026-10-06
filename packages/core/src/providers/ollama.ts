@@ -142,8 +142,16 @@ export class OllamaProvider implements LlmProvider {
     try {
       parsed = JSON.parse(raw)
     } catch (cause) {
+      // Include the text. "Not JSON" on its own is almost useless -- truncated
+      // JSON, an empty string, a prose apology and a markdown code fence are
+      // four different problems with four different fixes, and they are
+      // indistinguishable without seeing what actually came back.
       throw new ProviderError(
-        `Model "${this.model}" returned output that is not JSON despite a schema being requested`,
+        `Model "${this.model}" returned output that is not JSON despite a schema being ` +
+          `requested (${raw.length} chars, ${usage.outputTokens ?? '?'} tokens, ` +
+          `stopped: ${usage.stoppedBecause}).\n` +
+          `  starts: ${JSON.stringify(raw.slice(0, 220))}\n` +
+          `  ends:   ${JSON.stringify(raw.slice(-120))}`,
         cause,
       )
     }
