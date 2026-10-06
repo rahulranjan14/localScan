@@ -1,4 +1,22 @@
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
+
+/**
+ * pdfjs loads metrics for the 14 standard PDF fonts from disk, and warns on
+ * every document when it cannot find them. We only ever read text, so the
+ * metrics change nothing -- but the warning is per-document noise that would
+ * train everyone to ignore this script's output.
+ *
+ * Despite the name this must be a filesystem path, not a file:// URL. Under
+ * Node pdfjs reads it with fs rather than fetch, and a URL silently fails to
+ * resolve -- producing exactly the warning it is supposed to prevent.
+ */
+const standardFontDataUrl = (() => {
+  const require = createRequire(import.meta.url)
+  const pkg = require.resolve('pdfjs-dist/package.json')
+  return join(dirname(pkg), 'standard_fonts/')
+})()
 
 /**
  * Most invoices are generated digitally and already carry their text. Reading it
@@ -41,6 +59,7 @@ export async function readTextLayer(bytes: Uint8Array): Promise<TextLayerResult>
     disableFontFace: true,
     isEvalSupported: false,
     useSystemFonts: false,
+    standardFontDataUrl,
   }).promise
 
   try {
