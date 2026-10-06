@@ -1,0 +1,25 @@
+# ── Handoff material — reference only, not part of the build ──────────────
+handoff/
+*.zip
+
+# ── Node ─────────────────────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# ── Secrets & local config ───────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+data/config.json
+
+# ── Runtime data (PDFs live on disk, keyed by sha256) ────────────────────
+data/files/
+*.log
+
+# ── OS / editor ──────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+*.swp
