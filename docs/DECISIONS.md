@@ -74,3 +74,48 @@ Result: valid JSON, both fields correct, `10.8s` including cold model load.
 This is the measurement behind `FR-8.9`: structured-output reliability is probed,
 never assumed. A model that fails this probe cannot serve the `extract` role, and
 the application should say so rather than fail at extraction time.
+
+---
+
+## D-005 · Model-facing schemas are bounded and fully required
+
+**2026-10-06**
+
+Two rules for any schema sent to a model for constrained generation:
+
+1. **No open-ended collections.** Every array has a maximum and no object is a
+   free-form map. An unbounded collection gives the decoder no state in which it
+   must stop, so a model that begins repeating cannot be stopped by the grammar.
+2. **Every field required, nullable where unknown.** The key must be present with
+   a value or an explicit `null`.
+
+Both came from the same failing document — a travel invoice that took 474s, hit
+the token ceiling and returned unparseable JSON.
+
+`extraFields` was a `z.record()`. The model filled it with invented variations
+(`Airline Airline Travel Date`, `Airline Airline Total Fare`) until it was cut
+off at 2048 tokens. The prompt contributed by saying "anything left over goes in
+`extraFields`", which it followed literally.
+
+The schema was also emitted with `io: 'input'`, under which any field carrying a
+default is optional. Offered 25 skippable fields, the model answered the easy
+ones: vendor, buyer and extras were present, and invoice number, date, total and
+line items were absent entirely. Not null — absent.
+
+Measured on the same host, model and document:
+
+| | Before | After |
+|---|---|---|
+| Duration | 474s | **121s** |
+| Output tokens | 2048 | **1036** |
+| Stop reason | `length` | **`stop`** |
+| Result | unparseable | **valid, 10 line items** |
+
+The host sustained 8.6 tok/s throughout, before and after. **This was never a
+hardware problem**, which matters because the obvious response to a 474s
+extraction is to rent a GPU — and that would have made the same broken output
+arrive sooner.
+
+Generalised: when a local model appears too slow, read `done_reason` before
+reaching for faster hardware. `length` means it never stopped; `stop` with a low
+token rate is the only one that is actually a speed problem.
