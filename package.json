@@ -15,7 +15,8 @@
     "typecheck": "tsc --build --force",
     "check:inference": "tsx scripts/check-inference.mts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "extract": "tsx scripts/extract.mts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
