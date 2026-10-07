@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
+import { UiSchemaSchema, type UiSchema } from '@ocr/shared'
 
 /**
  * Prompts are markdown on disk, not string literals in the source (FR-4.2).
@@ -20,6 +21,7 @@ export function documentsDir(): string {
 }
 
 const cache = new Map<string, string>()
+const uiCache = new Map<string, UiSchema | null>()
 
 export async function loadPrompt(slug: string): Promise<string> {
   const cached = cache.get(slug)
@@ -40,4 +42,36 @@ export async function loadPrompt(slug: string): Promise<string> {
 /** Used by tests and by the eval harness, which edits prompts between runs. */
 export function clearPromptCache(): void {
   cache.clear()
+  uiCache.clear()
+}
+
+/**
+ * Form layouts live beside prompts and schemas, as JSON on disk.
+ *
+ * Loaded per request rather than stored per document. Storing a copy on each
+ * document would freeze the layout at extraction time, so editing `ui.json`
+ * would change nothing for anything already processed -- which defeats the point
+ * of the layout being data. One file per type, read fresh, is the behaviour the
+ * design intends.
+ */
+export async function loadUiSchema(slug: string): Promise<UiSchema | null> {
+  const cached = uiCache.get(slug)
+  if (cached !== undefined) return cached
+
+  const path = join(documentsDir(), slug, 'ui.json')
+  let parsed: UiSchema | null
+  try {
+    parsed = UiSchemaSchema.parse(JSON.parse(await readFile(path, 'utf8')))
+  } catch (error) {
+    // A missing layout is legitimate: `generic` has none, by design (FR-5.7).
+    // A malformed one is not, and must not be silently treated as absent.
+    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      parsed = null
+    } else {
+      throw new Error(`Form layout for "${slug}" at ${path} is not valid`, { cause: error })
+    }
+  }
+
+  uiCache.set(slug, parsed)
+  return parsed
 }

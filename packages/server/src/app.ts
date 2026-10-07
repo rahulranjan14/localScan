@@ -1,6 +1,11 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 import multer from 'multer'
-import { InputRejected, ProviderTimeoutError, ProviderUnreachableError } from '@ocr/core'
+import {
+  InputRejected,
+  ProviderTimeoutError,
+  ProviderUnreachableError,
+  loadUiSchema,
+} from '@ocr/core'
 import { DEFAULT_INPUT_LIMITS } from '@ocr/core'
 import { listDocumentTypes } from '@ocr/shared'
 import {
@@ -92,7 +97,9 @@ export function createApp(config: ServerConfig): Express {
         res.status(404).json({ error: 'No such document' })
         return
       }
-      res.json(document)
+      // Layout travels with the document so the interface needs no knowledge of
+      // document types at all (FR-5.2). Null for `generic`, which is read-only.
+      res.json({ ...document, uiSchema: await loadUiSchema(document.type) })
     } catch (error) {
       next(error)
     }
