@@ -11,15 +11,20 @@
     "node": ">=20.19.0"
   },
   "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm run dev -w @ocr/server",
+    "dev:web": "npm run dev -w @ocr/web",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc --build --force",
-    "check:inference": "tsx scripts/check-inference.mts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "migrate": "npm run migrate -w @ocr/server",
+    "check:inference": "tsx scripts/check-inference.mts",
     "extract": "tsx scripts/extract.mts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "concurrently": "^9.2.4",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
