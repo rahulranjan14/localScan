@@ -20,6 +20,7 @@
   "dependencies": {
     "@ocr/core": "*",
     "@ocr/shared": "*",
+    "dotenv": "^18.0.6",
     "express": "^4.21.2",
     "multer": "^1.4.5-lts.1",
     "pg": "^8.13.1",

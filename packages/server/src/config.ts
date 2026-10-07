@@ -1,3 +1,5 @@
+// First, so every variable read below reflects .env as well as the environment.
+import './env.js'
 import { ROLES, type Role, type RoleBinding } from '@ocr/shared'
 import { OllamaProvider, type LlmProvider } from '@ocr/core'
 

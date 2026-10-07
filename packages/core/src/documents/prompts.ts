@@ -75,3 +75,24 @@ export async function loadUiSchema(slug: string): Promise<UiSchema | null> {
   uiCache.set(slug, parsed)
   return parsed
 }
+
+/**
+ * The classifier prompt is a single file at the root of `documents/`, not inside
+ * a type directory, because it is not owned by any one type -- it is what chooses
+ * between them.
+ */
+export async function loadClassifierPrompt(): Promise<string> {
+  const cached = cache.get('_classifier')
+  if (cached !== undefined) return cached
+
+  const path = join(documentsDir(), '_classifier.md')
+  let contents: string
+  try {
+    contents = await readFile(path, 'utf8')
+  } catch (cause) {
+    throw new Error(`Classifier prompt not found at ${path}`, { cause })
+  }
+
+  cache.set('_classifier', contents)
+  return contents
+}
