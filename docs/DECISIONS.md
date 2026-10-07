@@ -119,3 +119,78 @@ arrive sooner.
 Generalised: when a local model appears too slow, read `done_reason` before
 reaching for faster hardware. `length` means it never stopped; `stop` with a low
 token rate is the only one that is actually a speed problem.
+
+---
+
+## D-006 · PDF rasterisation uses PDFium via WebAssembly, not a native canvas
+
+**2026-10-07**
+
+Rasterisation was the one genuinely unknown part of the plan, so it was measured
+before any code depended on it. `scripts/spike-rasterise.mts` is committed so the
+numbers below can be reproduced.
+
+### Candidates
+
+| | Outcome |
+|---|---|
+| `pdfjs-dist` + `@napi-rs/canvas` | **Segfaults on ordinary documents** |
+| `pdf-to-img` | Bundles its own pdfjs; worker/API version clash with ours |
+| `node-poppler` | Not evaluated — needs a binary outside npm |
+| **`@hyzyla/pdfium` + `sharp`** | **Chosen** |
+
+### Why the native canvas was rejected
+
+It rendered some pages and crashed the process on others. Tested alone, with no
+state carried between them:
+
+| Page | Result |
+|---|---|
+| CISO-Report p1 | rendered |
+| CISO-Report p2 | **SIGSEGV** |
+| CISO-Report p3 | rendered |
+| ServiceCharge p1 | **SIGSEGV** |
+| ServiceCharge p2 | **SIGSEGV** |
+
+Content-specific, not a memory ceiling — the crash came at 139 MB RSS. Two
+details made it worse than a normal bug:
+
+1. **A segfault cannot be caught.** No `try`/`catch` and no promise rejection
+   intercepts it; the process simply dies. In a pipeline that means one document
+   takes down the server, and the run is lost rather than failed.
+2. It needed `Path2D`, `DOMMatrix` and `ImageData` installed as globals before it
+   would render at all, failing otherwise inside `paintChar` with *"Value is none
+   of these types `String`, `Path`"* — an error naming neither pdfjs nor the
+   missing global.
+
+### Why WebAssembly specifically
+
+PDFium compiled to WASM rendered **every page that crashed the native library**,
+and the isolation is the point rather than a bonus: WASM traps instead of
+corrupting the host process. For a pipeline whose input is untrusted PDFs, a
+renderer that *cannot* take down the server is worth more than a faster one.
+
+### Measured — CISO-Report.pdf, 5 pages
+
+| DPI | Page size | Peak RSS | Time |
+|---|---|---|---|
+| 150 | 1239×1754 | 156 MB | 0.1s |
+| 200 | 1652×2338 | 203 MB | 0.1s |
+| 300 | 2479×3508 | 282 MB | 0.2s |
+| 400 | 3305×4677 | 411 MB | 0.3s |
+
+**300 DPI is affordable.** The original concern — that 300 DPI would be the memory
+ceiling on an 8 GB machine — does not hold here, because the application host
+never loads a model (`D-001`). 282 MB is unremarkable. The predecessor system
+disabled Pillow's decompression-bomb guard to get around this, which removed the
+warning rather than the cause.
+
+**Default: 200 DPI**, revisited once the harness can measure accuracy against it.
+150 is likely enough for digital text and 300 for dense scans, but that is a
+guess until measured, and guesses do not belong in a default that is cheap to
+change.
+
+### Still unverified
+
+Whether `granite3.2-vision` reads these images well enough to extract from. The
+check was interrupted when the inference host became unavailable.
