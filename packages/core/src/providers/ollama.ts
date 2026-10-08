@@ -212,12 +212,22 @@ export class OllamaProvider implements LlmProvider {
       throw new ModelNotInstalledError(this.model, this.baseUrl)
     }
 
-    const families = show.details?.families ?? []
     const declared = show.capabilities ?? []
+    const families = show.details?.families ?? []
 
     const capabilities: ModelCapabilities = {
-      vision: families.some((f) => f === 'clip' || f === 'mllama') || declared.includes('vision'),
-      embedding: declared.includes('embedding'),
+      // `capabilities` is authoritative; `families` is only a fallback for hosts
+      // too old to report it.
+      //
+      // The families heuristic -- "a vision model's families contains clip or
+      // mllama" -- is widely repeated and wrong. qwen2.5vl:3b reports
+      // families ['qwen25vl'] with no clip at all, while its capabilities array
+      // says vision. Trusting families alone silently excludes that model from
+      // the ocr role, and the symptom is a dropdown that is simply missing an
+      // option rather than any error.
+      vision: declared.includes('vision') || families.some((f) => f === 'clip' || f === 'mllama'),
+      embedding: declared.includes('embedding') || families.some((f) => f.endsWith('bert')),
+      // Not reported by anything. Established by probe and cached (FR-8.9).
       structuredOutput: 'loose' satisfies StructuredOutputTier,
     }
 

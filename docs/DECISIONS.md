@@ -194,3 +194,36 @@ change.
 
 Whether `granite3.2-vision` reads these images well enough to extract from. The
 check was interrupted when the inference host became unavailable.
+
+---
+
+## D-007 · Model capabilities come from `capabilities`, not `families`
+
+**2026-10-08**
+
+Ollama's `/api/show` returns both `details.families` and a `capabilities` array.
+**`capabilities` is authoritative. `families` is a weak heuristic.**
+
+The commonly repeated rule — a vision model's `families` contains `clip` or
+`mllama` — is false, and `ARCHITECTURE.md` in the handoff material asserts it.
+Observed on this host:
+
+| Model | `families` | `capabilities` | Vision? |
+|---|---|---|---|
+| `granite3.2-vision` | `['granite','clip']` | `['tools','completion','vision']` | yes |
+| `qwen2.5vl:3b` | `['qwen25vl']` | `['completion','vision']` | **yes, no `clip`** |
+| `nomic-embed-text` | `['nomic-bert']` | `['embedding']` | no |
+| `gemma3:12b` | — | includes `vision` | yes |
+
+`qwen2.5vl:3b` is a vision model whose `families` contains no `clip`. Relying on
+the heuristic would silently exclude it from the `ocr` role, and the symptom is
+the worst kind for a configuration screen: a dropdown quietly missing an option,
+with no error anywhere.
+
+So `capabilities` is checked first and `families` kept only as a fallback for
+hosts too old to report it. Note also that `/api/tags` does **not** include
+`capabilities` — only `/api/show` does, per model. Any capability check must call
+`/api/show`.
+
+This changes nothing about structured output, which no field reports at all and
+which is still established by probe (`D-004`, `FR-8.9`).
