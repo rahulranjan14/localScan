@@ -3,6 +3,46 @@ import { api, type DocumentRecord } from '../api'
 import { DynamicForm } from './DynamicForm'
 
 /**
+ * How the document type was decided, and how sure the model was.
+ *
+ * The number is labelled "self-reported" rather than shown as a percentage on its
+ * own, because it is **not calibrated** (FR-3.4): a model answering 0.95 does not
+ * mean 95% of such answers are correct. Presenting it as a bare percentage invites
+ * exactly that reading, which is worse than not showing it — a user who trusts an
+ * uncalibrated 0.95 reviews less carefully than one shown nothing.
+ */
+function Classification({
+  confidence,
+  reason,
+  type,
+}: {
+  confidence: number | null
+  reason: string | null
+  type: string
+}) {
+  return (
+    <details className="group" style={{ marginBottom: 18 }}>
+      <summary style={{ cursor: 'pointer', fontSize: 13 }}>
+        Classified as <strong>{type}</strong>
+        {confidence !== null && (
+          <span className="dim"> · model's own confidence {confidence.toFixed(2)}</span>
+        )}
+      </summary>
+      <div style={{ marginTop: 8, fontSize: 13 }}>
+        {reason && <p style={{ margin: '0 0 8px' }}>{reason}</p>}
+        {confidence !== null && (
+          <p className="dim" style={{ margin: 0 }}>
+            This figure is the model's own estimate and is not calibrated — 0.95 here does not mean
+            95% of such answers are right. Treat it as a hint about where to look, not a measure of
+            correctness.
+          </p>
+        )}
+      </div>
+    </details>
+  )
+}
+
+/**
  * The core screen: document on the left at full height, fields on the right,
  * each scrolling independently (FR-5.1).
  *
@@ -85,6 +125,10 @@ export function Review({ id, onBack }: { id: string; onBack: () => void }) {
             </button>
           )}
         </div>
+
+        {(doc.confidence !== null || doc.classificationReason) && (
+          <Classification confidence={doc.confidence} reason={doc.classificationReason} type={doc.type} />
+        )}
 
         {doc.status === 'needs_review' && (
           <div className="notice">

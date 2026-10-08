@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import type { GenerationUsage, LlmProvider } from '../providers/types.js'
 import { renderPrompt, scanForInjection, type InjectionScan } from '../guards/prompt.js'
+import { guardOutput } from '../guards/output.js'
 
 export interface ExtractInput<T> {
   provider: LlmProvider
@@ -15,7 +16,14 @@ export interface ExtractInput<T> {
 }
 
 export type ExtractOutcome<T> =
-  | { ok: true; data: T; injection: InjectionScan; durationMs: number }
+  | {
+      ok: true
+      data: T
+      /** Field paths the output guard shortened. Empty in the normal case. */
+      truncated: string[]
+      injection: InjectionScan
+      durationMs: number
+    }
   | { ok: false; reason: string; injection: InjectionScan; durationMs: number }
 
 /**
@@ -43,7 +51,17 @@ export async function extractStructured<T>(input: ExtractInput<T>): Promise<Extr
       ...(input.signal ? { signal: input.signal } : {}),
       ...(input.onUsage ? { onUsage: input.onUsage } : {}),
     })
-    return { ok: true, data, injection, durationMs: Date.now() - started }
+    // Re-validate and cap before this leaves the engine (FR-11.3). The schema
+    // already capped most fields; this holds when a schema forgets one, which a
+    // three-file recipe for adding types makes likely rather than hypothetical.
+    const guarded = guardOutput(data, input.schema)
+    return {
+      ok: true,
+      data: guarded.data,
+      truncated: guarded.truncated,
+      injection,
+      durationMs: Date.now() - started,
+    }
   } catch (error) {
     return {
       ok: false,

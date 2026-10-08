@@ -75,3 +75,65 @@ export async function loadUiSchema(slug: string): Promise<UiSchema | null> {
   uiCache.set(slug, parsed)
   return parsed
 }
+
+/**
+ * The classifier prompt is a single file at the root of `documents/`, not inside
+ * a type directory, because it is not owned by any one type -- it is what chooses
+ * between them.
+ */
+export async function loadClassifierPrompt(): Promise<string> {
+  return loadRootPrompt('_classifier')
+}
+
+/**
+ * The page-transcription prompt, optionally specialised per model.
+ *
+ * Transcription prompts are **not portable between models**, which was expensive
+ * to learn. The same image and the same model produced, depending only on how it
+ * was asked:
+ *
+ *   `<image>\nFree OCR.`              → a perfect 71-character transcription
+ *   `<image>\n<|grounding|>…markdown` → bounding boxes, and `INV- 7` for `INV-7`
+ *   `Read all text in this image.`    → silently dropped the first line
+ *   a six-rule instruction prompt     → **empty output**, after 119 seconds
+ *
+ * That last one is why this exists. deepseek-ocr is a specialist OCR model with a
+ * fixed prompt convention, not a general instruction-following VLM, and giving it
+ * careful instructions written for granite or qwen-vl produces nothing at all --
+ * with no error to explain why.
+ *
+ * So: `documents/_ocr.<model>.md` if present, otherwise `documents/_ocr.md`. A
+ * file on disk, discoverable by anyone adding a model, rather than a lookup table
+ * in the source.
+ */
+export async function loadOcrPrompt(model?: string): Promise<string> {
+  if (model) {
+    // `deepseek-ocr:3b` → `_ocr.deepseek-ocr.md`. The tag is dropped because the
+    // convention belongs to the model, not to a particular quantisation of it.
+    const base = model.split(':')[0]!.toLowerCase()
+    const specialised = await loadRootPrompt(`_ocr.${base}`).catch(() => null)
+    if (specialised !== null) return specialised
+  }
+  return loadRootPrompt('_ocr')
+}
+
+/** Key-value extraction for documents that match no typed schema. */
+export async function loadGenericPrompt(): Promise<string> {
+  return loadRootPrompt('_generic')
+}
+
+async function loadRootPrompt(name: string): Promise<string> {
+  const cached = cache.get(name)
+  if (cached !== undefined) return cached
+
+  const path = join(documentsDir(), `${name}.md`)
+  let contents: string
+  try {
+    contents = await readFile(path, 'utf8')
+  } catch (cause) {
+    throw new Error(`Prompt not found at ${path}`, { cause })
+  }
+
+  cache.set(name, contents)
+  return contents
+}

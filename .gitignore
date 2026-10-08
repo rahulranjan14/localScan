@@ -30,3 +30,10 @@ dist/
 
 # ── Local runtime data ───────────────────────────────────────────────────
 data/
+
+# ── Eval fixtures are COMMITTED, never ignored ───────────────────────────
+# The predecessor system gitignored *.pdf and its metrics, leaving 20 approved
+# labels pointing at fixtures nobody had. Negated here so a later *.pdf rule
+# cannot quietly undo reproducibility.
+!packages/eval/fixtures/**
+!packages/eval/labels.json

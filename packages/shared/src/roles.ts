@@ -67,3 +67,26 @@ export interface ModelCapabilities {
   embedding: boolean
   structuredOutput: StructuredOutputTier
 }
+
+/**
+ * How text is obtained from a document.
+ *
+ * `auto` reads the text layer when it is usable and falls back to the vision
+ * model. That is the cheap default, and on a digital PDF the text layer is exact
+ * where a model is a guess.
+ *
+ * `always_vlm` rasterises and transcribes every document regardless. Slower and
+ * sometimes *better*: a PDF's text layer can be mangled in ways a rendered page
+ * is not. A real example from this project's own test corpus — the text layer
+ * gave `AIR_I NDIA` and `2025-04- 06 17:15: 00`, where a model reading the
+ * rendered page sees the words as printed.
+ *
+ * `prefer_text` uses the text layer whenever there is any at all, never calling a
+ * vision model. For a machine with no inference host, or a corpus known to be
+ * entirely digital.
+ *
+ * Which is better is a measurable question, not a matter of taste, and the
+ * evaluation harness is what settles it.
+ */
+export const TEXT_MODES = ['auto', 'always_vlm', 'prefer_text'] as const
+export type TextMode = (typeof TEXT_MODES)[number]

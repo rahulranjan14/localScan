@@ -1,3 +1,4 @@
+import { loadedEnvFile } from './env.js'
 import { createApp } from './app.js'
 import { loadConfig } from './config.js'
 import { closePool } from './db/pool.js'
@@ -19,6 +20,9 @@ const server = app.listen(config.port, '127.0.0.1', () => {
   console.log(`  server     http://127.0.0.1:${config.port}`)
   console.log(`  inference  ${config.ollamaBaseUrl}`)
   console.log(`  extract    ${config.roles.extract?.model ?? '(unconfigured)'}`)
+  // Printed because a silently-unloaded .env is the failure this replaced: the
+  // server came up healthy and pointed at the wrong host.
+  console.log(`  env        ${loadedEnvFile ?? '(no .env found — using defaults)'}`)
 })
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
