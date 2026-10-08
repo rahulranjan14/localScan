@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Unit tests only. Anything requiring a live inference host is excluded by
+      # the vitest config -- a suite that fails because a particular machine is
+      # asleep stops being run, and then stops being written.
+      - name: Test
+        run: npm test

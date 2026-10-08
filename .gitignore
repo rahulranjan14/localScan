@@ -23,3 +23,10 @@ data/files/
 .DS_Store
 .idea/
 *.swp
+
+# ── Build output ─────────────────────────────────────────────────────────
+dist/
+*.tsbuildinfo
+
+# ── Local runtime data ───────────────────────────────────────────────────
+data/
