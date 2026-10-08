@@ -364,3 +364,37 @@ contained six fabricated values.
 This is the argument for scoring *every* field in a schema against ground truth
 rather than the fields someone thought to look at — made, inconveniently, against
 my own benchmark entry.
+
+---
+
+## D-011 · pgvector is built from source against PostgreSQL 14
+
+**2026-10-08**
+
+`brew install pgvector` installs a bottle built for **PostgreSQL 17 and 18 only**.
+This machine runs 14.11, so the extension installed cleanly and then could not be
+loaded:
+
+```
+ERROR: could not open extension control file
+       "/opt/homebrew/share/postgresql@14/extension/vector.control"
+```
+
+pgvector supports PostgreSQL 13 and up; the gap is Homebrew's bottle coverage, not
+the extension. So it is built from source against this Postgres:
+
+```bash
+git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git
+make -C pgvector PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+make -C pgvector install PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+```
+
+Verified: `'[1,2,3]'::vector <=> '[1,2,4]'::vector` returns `0.0085`.
+
+The alternative was upgrading PostgreSQL to 17. Rejected as the larger change for
+the smaller reason — a major-version upgrade to satisfy a packaging gap, when a
+five-minute source build satisfies it exactly. `D-003` stands.
+
+This is worth recording because the failure is confusing rather than obvious:
+`brew install` succeeds, `CREATE EXTENSION` fails, and the error names a path
+rather than a version mismatch.
