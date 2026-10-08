@@ -114,10 +114,13 @@ export async function searchChunks(options: SearchOptions): Promise<RetrievedChu
   return rows
 }
 
-export async function countChunks(documentId: string): Promise<number> {
-  const { rows } = await pool.query<{ n: string }>(
-    'SELECT count(*) AS n FROM chunks WHERE document_id = $1',
-    [documentId],
-  )
+/** Chunks for one document, or for the whole corpus when no id is given. */
+export async function countChunks(documentId?: string): Promise<number> {
+  const { rows } = documentId
+    ? await pool.query<{ n: string }>(
+        'SELECT count(*) AS n FROM chunks WHERE document_id = $1',
+        [documentId],
+      )
+    : await pool.query<{ n: string }>('SELECT count(*) AS n FROM chunks')
   return Number(rows[0]?.n ?? 0)
 }

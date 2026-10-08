@@ -16,6 +16,7 @@ import {
   ocrPages,
   rasterizePdf,
   readTextLayer,
+  indexDocument,
   validatePdfInput,
   type LlmProvider,
 } from '@ocr/core'
@@ -26,6 +27,7 @@ import {
   type DocumentRow,
 } from '../repositories/documents.js'
 import { findFileBySha256, insertFile } from '../repositories/files.js'
+import { replaceChunks } from '../repositories/chunks.js'
 import { sha256, storeFile } from '../storage/fileStore.js'
 import { RoleUnconfiguredError, providerForRole, type ServerConfig } from '../config.js'
 
@@ -204,7 +206,7 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
     text: rawText,
   })
 
-  return insertDocument({
+  const document = await insertDocument({
     fileId: file.id,
     type,
     rawText,
@@ -220,6 +222,23 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
     status: result.ok ? 'completed' : 'needs_review',
     error: result.ok ? null : result.reason,
   })
+
+  // Indexed last, and failure here is not fatal. A document that extracted
+  // correctly but could not be embedded is still a usable document; losing the
+  // extraction because the embedding model was unreachable would not be.
+  try {
+    say('index')
+    const embedProvider = optionalProvider(input.config, 'embed')
+    if (embedProvider && rawText) {
+      const chunks = await indexDocument({ provider: embedProvider, rawText })
+      await replaceChunks(document.id, chunks)
+      say('index', `${chunks.length} chunk(s)`)
+    }
+  } catch (error) {
+    say('index', `failed: ${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  return document
 }
 
 /**
@@ -242,7 +261,7 @@ async function resolveExtraction(
 }
 
 /** `fallback` is optional; an unset role must not fail the run. */
-function optionalProvider(config: ServerConfig, role: 'fallback'): LlmProvider | undefined {
+function optionalProvider(config: ServerConfig, role: 'fallback' | 'embed'): LlmProvider | undefined {
   try {
     return providerForRole(config, role)
   } catch (error) {

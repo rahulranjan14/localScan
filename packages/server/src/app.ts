@@ -16,6 +16,8 @@ import {
 import { findFileById } from './repositories/files.js'
 import { readStoredFile } from './storage/fileStore.js'
 import { DuplicateDocument, ingestDocument } from './services/ingest.js'
+import { askDocument } from './services/qa.js'
+import { handleMcpRequest } from './mcp.js'
 import { RoleUnconfiguredError, providerForRole, type ServerConfig } from './config.js'
 
 /**
@@ -34,6 +36,16 @@ const upload = multer({
 export function createApp(config: ServerConfig): Express {
   const app = express()
   app.use(express.json({ limit: '1mb' }))
+
+  // The agent surface, on this same app and port (FR-7.1). Mounted before the
+  // REST routes only so it is visible first when reading the file.
+  app.post('/mcp', async (req, res, next) => {
+    try {
+      await handleMcpRequest(config, req, res)
+    } catch (error) {
+      next(error)
+    }
+  })
 
   app.get('/api/health', async (_req, res) => {
     const binding = config.roles.extract
@@ -132,6 +144,25 @@ export function createApp(config: ServerConfig): Express {
 
       const updated = await updateEditedData(req.params.id, req.body)
       res.json(updated)
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  /** Q&A over one document, or over the whole corpus when id is 'all'. */
+  app.post('/api/documents/:id/ask', async (req, res, next) => {
+    try {
+      const question = typeof req.body?.question === 'string' ? req.body.question.trim() : ''
+      if (!question) {
+        res.status(400).json({ error: 'Send { "question": "..." }' })
+        return
+      }
+      const answer = await askDocument({
+        question,
+        ...(req.params.id === 'all' ? {} : { documentId: req.params.id }),
+        config,
+      })
+      res.json(answer)
     } catch (error) {
       next(error)
     }
