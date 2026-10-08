@@ -1,0 +1,19 @@
+-- Removes the IVFFlat index added in 002.
+--
+-- IVFFlat partitions vectors into `lists` clusters and probes only
+-- `ivfflat.probes` of them (default 1). With more lists than rows most clusters
+-- are empty, so a probe can land on an empty one and the query returns **fewer
+-- rows than requested — sometimes none at all.**
+--
+-- Observed here with 5 chunks and lists = 10: one of three test queries returned
+-- zero results while an exact scan returned the expected matches.
+--
+-- That is a correctness bug rather than a performance tradeoff. A retrieval layer
+-- that silently returns nothing is worse than a slow one: the answer becomes "I
+-- could not find that in the document" for a fact plainly present on the page,
+-- and nothing distinguishes it from a genuine miss.
+--
+-- Exact search over a local corpus costs nothing. An index belongs here when
+-- there are enough rows to need one, and it should be HNSW, which has no
+-- equivalent under-filled failure mode.
+DROP INDEX IF EXISTS chunks_embedding_idx;

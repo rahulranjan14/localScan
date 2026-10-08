@@ -398,3 +398,44 @@ five-minute source build satisfies it exactly. `D-003` stands.
 This is worth recording because the failure is confusing rather than obvious:
 `brew install` succeeds, `CREATE EXTENSION` fails, and the error names a path
 rather than a version mismatch.
+
+---
+
+## D-012 · No approximate vector index until there is data to justify one
+
+**2026-10-08**
+
+The `chunks` table has no vector index. Exact search only.
+
+An IVFFlat index was added with `lists = 10` and immediately caused a correctness
+failure. IVFFlat partitions vectors into `lists` clusters and probes only
+`ivfflat.probes` of them — **one**, by default. With more lists than rows most
+clusters are empty, so a probe can land on an empty cluster and the query returns
+fewer rows than requested.
+
+Observed with 5 chunks in the table:
+
+```
+Q: What is the GST registration number?
+   (zero results)
+```
+
+Three chunks contained the answer. The query asked for two and got none.
+
+**This is a correctness bug, not a performance tradeoff.** A retrieval layer that
+silently returns nothing produces "I could not find that in the document" for a
+fact plainly printed on the page, and nothing distinguishes that from a genuine
+miss. The user has no way to tell they were lied to.
+
+Dropping the index fixed it, and also fixed a ranking failure: "How much did the
+mouse cost?" had been returning the wrong invoice entirely and now returns the
+right one at distance 0.366.
+
+Exact search over a local corpus is instant. An index belongs here when there are
+enough rows to need one, and it should be **HNSW**, which has no equivalent
+under-filled failure mode. Adding IVFFlat at this scale was optimising a
+non-problem and introducing a real one.
+
+The migration comment in `002` even warned that too many lists makes each probe
+search near-empty partitions. Writing the warning and then setting `lists = 10`
+on an empty table is its own lesson.
