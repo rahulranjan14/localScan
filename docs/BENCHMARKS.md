@@ -86,3 +86,64 @@ inference is practical on this hardware — the constraint is accuracy, not spee
 - `deepseek-ocr`, which the predecessor system used for this role.
 - End-to-end extraction accuracy. This measures transcription only; the
   extraction step that turns text into typed JSON is scored separately.
+
+---
+
+## Run 002 — the two-stage pipeline, end to end
+
+**2026-10-08** · `packages/eval/fixtures/tiny-invoice.pdf` (70 characters, 5 lines)
+· CPU-only host · `OCR_TEXT_MODE=always_vlm`
+
+The original design this project was asked to follow: document → VLM → raw text →
+text model → validated JSON. Measured through the real HTTP endpoint, not a script.
+
+```
+OCR_MODEL_OCR=deepseek-ocr:3b      OCR_MODEL_EXTRACT=llama3.2:3b
+OCR_MODEL_CLASSIFY=llama3.2:3b     OCR_MODEL_FALLBACK=qwen2.5:3b
+```
+
+### Result: 5/5 fields correct
+
+| Field | Expected | Got | |
+|---|---|---|---|
+| `invoiceNumber` | `INV-7` | `INV-7` | ✓ |
+| `invoiceDate` | `2026-02-01` | `2026-02-01` | ✓ |
+| `currency` | `INR` | `INR` | ✓ |
+| `total` | `2500.00` | `2500` | ✓ |
+| `vendor.name` | `Bluebird Ltd` | `Bluebird Ltd` | ✓ |
+
+Transcription was character-exact. Classification returned `invoice`. The fallback
+model never fired, which also settles an open question: **`llama3.2:3b` does honour
+a requested JSON schema.**
+
+**2m 27s total**, including cold loads of two models that had never been resident.
+
+### What the prompt convention was worth
+
+The same stack, same document, differing only in the transcription prompt:
+
+| OCR prompt | Transcription | Pipeline outcome |
+|---|---|---|
+| six-rule instruction prompt | **empty** | `generic`, 0.00 confidence, no data |
+| `<image>\nFree OCR.` | character-exact | **`invoice`, 5/5 fields** |
+
+A prompt, not a model, was the difference between complete failure and a perfect
+result. See `D-009`.
+
+### Two things that were wrong anyway
+
+**Confidence came back as exactly `1.00`.** On a five-line document with no
+ambiguity that is not unreasonable, but it is also what an uncalibrated model
+returns when it has no mechanism for doubt. `FR-3.4` exists for this.
+
+**The stated reason was partly confabulated** — "has an invoice number, a
+line-item table and a payable total". There is no line-item table in a five-line
+document. The classification was right and part of its justification was invented,
+which is a useful reminder that a checkable reason is only valuable when someone
+checks it.
+
+### Still not measured
+
+A real scan. Everything so far is a synthetic render: no skew, no noise, no
+compression artefacts. That is the case where a specialist OCR model should pull
+ahead of a general VLM, and it remains untested.

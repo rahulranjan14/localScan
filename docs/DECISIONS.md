@@ -272,3 +272,41 @@ A 99% character match concealing a changed year is exactly the failure the
 evaluation harness exists to catch, and exactly what a character-level metric
 would have reported as success. It also confirms the text-layer-first default
 (`FR-2.2`): the free path was perfect on this document, the model path was not.
+
+---
+
+## D-009 · OCR prompts are per model, not shared
+
+**2026-10-08**
+
+`documents/_ocr.<model>.md` when it exists, otherwise `documents/_ocr.md`.
+
+Transcription prompts are not portable. One image, one model (`deepseek-ocr:3b`),
+four ways of asking:
+
+| Prompt | Result |
+|---|---|
+| `<image>\nFree OCR.` | perfect, character-exact |
+| `<image>\n<\|grounding\|>Convert the document to markdown.` | bounding-box markup, and `INV- 7` for `INV-7` |
+| `Read all text in this image.` | silently dropped the first line |
+| the project's six-rule instruction prompt | **empty output, after 119 seconds** |
+
+The last row is the reason this decision exists. A specialist OCR model has a
+fixed prompt convention; it is not a general instruction-following VLM. Careful
+instructions written for `granite3.2-vision` produce *nothing at all* from it, with
+no error — and the pipeline then stored the document as `completed` with 15
+characters of text. The empty-transcription guard was added in the same session
+because of it.
+
+The tag is stripped from the model name (`deepseek-ocr:3b` → `_ocr.deepseek-ocr.md`)
+because the convention belongs to the model, not to a quantisation of it.
+
+A file on disk rather than a lookup table in the provider, so that whoever adds the
+next vision model can see that per-model prompts are expected, and add one.
+
+### Incidental, and contrary to the handoff notes
+
+`deepseek-ocr:3b` took 71s on a cold load of 6.69 GB of F16 weights and **2-4
+seconds warm**, against `granite3.2-vision`'s 30.8s. `CONTEXT.md` called the
+unquantised F16 size "the worst case for CPU latency", which is true of the load
+and false of the inference.
