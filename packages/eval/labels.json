@@ -1,16 +1,25 @@
 {
   "_comment": [
-    "Ground truth, hand-verified. Committed deliberately, along with the fixtures.",
-    "The predecessor system's eval harness was well designed and unreproducible,",
-    "because .gitignore excluded *.pdf and the metrics files -- so 20 approved",
-    "labels referenced fixtures nobody had. A result that cannot be reproduced from",
-    "this repository does not count (FR-10.1)."
+    "Ground truth, hand-verified against each page. Committed deliberately, along",
+    "with the fixtures and the results.",
+    "",
+    "The rule for a label: write only what the document STATES. Never what a reader",
+    "could reasonably infer. sample-invoice.pdf carries a GSTIN, which means the",
+    "amounts are almost certainly rupees -- and `currency` is null there, because",
+    "the document does not legibly say so. Labelling the inference would make an",
+    "inferred answer score as correct, and inference is exactly what the prompts",
+    "forbid.",
+    "",
+    "The predecessor system's harness was well designed and unreproducible: its",
+    ".gitignore excluded *.pdf and the metrics files, so twenty approved labels",
+    "referenced fixtures nobody had. A result that cannot be reproduced from this",
+    "repository does not count (FR-10.1)."
   ],
   "fixtures": {
     "simple-invoice.pdf": {
       "approved": true,
       "source": "synthetic, generated for this project",
-      "notes": "Deliberately minimal: 11 lines, one line item, no tables. Its job is to be a document that any model should get completely right, so that a failure here is unambiguous.",
+      "notes": "11 lines, one described item, no table. A document any model should get completely right, so a failure here is unambiguous.",
       "type": "invoice",
       "data": {
         "invoiceNumber": "INV-001",
@@ -21,11 +30,60 @@
         "vendor": { "name": "the vendor line", "address": null, "taxId": null, "email": null, "phone": null },
         "buyer": { "name": "Nivetti Systems Pvt Ltd", "address": null, "taxId": null, "email": null, "phone": null },
         "lineItems": [
-          { "description": "Office chairs", "quantity": 2, "unitPrice": 5000.0, "amount": 10000.0, "taxRate": null }
+          { "description": "Office chairs", "quantity": 2, "unitPrice": 5000.0, "amount": null, "taxRate": null }
         ],
         "subtotal": null,
         "taxTotal": null,
         "total": 10000.0,
+        "notes": null,
+        "extraFields": []
+      }
+    },
+
+    "tiny-invoice.pdf": {
+      "approved": true,
+      "source": "synthetic, generated for this project",
+      "notes": "5 lines, no line-item table at all. Its job is to test whether a model invents a line item from a printed total -- which llama3.2:3b does.",
+      "type": "invoice",
+      "data": {
+        "invoiceNumber": "INV-7",
+        "invoiceDate": "2026-02-01",
+        "dueDate": null,
+        "poNumber": null,
+        "currency": "INR",
+        "vendor": { "name": "Bluebird Ltd", "address": null, "taxId": null, "email": null, "phone": null },
+        "buyer": { "name": null, "address": null, "taxId": null, "email": null, "phone": null },
+        "lineItems": [],
+        "subtotal": null,
+        "taxTotal": null,
+        "total": 2500.0,
+        "notes": null,
+        "extraFields": []
+      }
+    },
+
+    "sample-invoice.pdf": {
+      "approved": true,
+      "source": "supplied by the project owner",
+      "notes": "First fixture with a real line-item table, and the first not generated for the test. The currency glyph does not render in the PDF, so `currency` is null -- a reader cannot tell from the page, and the GSTIN is an inference rather than a statement. There is no invoice number and no date anywhere on it.",
+      "type": "invoice",
+      "data": {
+        "invoiceNumber": null,
+        "invoiceDate": null,
+        "dueDate": null,
+        "poNumber": null,
+        "currency": null,
+        "vendor": { "name": "the vendor name", "address": null, "taxId": "00AAAAA0000A0Z0", "email": null, "phone": null },
+        "buyer": { "name": null, "address": null, "taxId": null, "email": null, "phone": null },
+        "lineItems": [
+          { "description": "Notebook", "quantity": 2, "unitPrice": 250, "amount": 500, "taxRate": null },
+          { "description": "Pen", "quantity": 5, "unitPrice": 40, "amount": 200, "taxRate": null },
+          { "description": "USB Cable", "quantity": 1, "unitPrice": 450, "amount": 450, "taxRate": null },
+          { "description": "Mouse", "quantity": 1, "unitPrice": 900, "amount": 900, "taxRate": null }
+        ],
+        "subtotal": null,
+        "taxTotal": null,
+        "total": 2050,
         "notes": null,
         "extraFields": []
       }
