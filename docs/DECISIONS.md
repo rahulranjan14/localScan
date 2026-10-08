@@ -364,3 +364,116 @@ contained six fabricated values.
 This is the argument for scoring *every* field in a schema against ground truth
 rather than the fields someone thought to look at — made, inconveniently, against
 my own benchmark entry.
+
+---
+
+## D-011 · pgvector is built from source against PostgreSQL 14
+
+**2026-10-08**
+
+`brew install pgvector` installs a bottle built for **PostgreSQL 17 and 18 only**.
+This machine runs 14.11, so the extension installed cleanly and then could not be
+loaded:
+
+```
+ERROR: could not open extension control file
+       "/opt/homebrew/share/postgresql@14/extension/vector.control"
+```
+
+pgvector supports PostgreSQL 13 and up; the gap is Homebrew's bottle coverage, not
+the extension. So it is built from source against this Postgres:
+
+```bash
+git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git
+make -C pgvector PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+make -C pgvector install PG_CONFIG=/opt/homebrew/opt/postgresql@14/bin/pg_config
+```
+
+Verified: `'[1,2,3]'::vector <=> '[1,2,4]'::vector` returns `0.0085`.
+
+The alternative was upgrading PostgreSQL to 17. Rejected as the larger change for
+the smaller reason — a major-version upgrade to satisfy a packaging gap, when a
+five-minute source build satisfies it exactly. `D-003` stands.
+
+This is worth recording because the failure is confusing rather than obvious:
+`brew install` succeeds, `CREATE EXTENSION` fails, and the error names a path
+rather than a version mismatch.
+
+---
+
+## D-012 · No approximate vector index until there is data to justify one
+
+**2026-10-08**
+
+The `chunks` table has no vector index. Exact search only.
+
+An IVFFlat index was added with `lists = 10` and immediately caused a correctness
+failure. IVFFlat partitions vectors into `lists` clusters and probes only
+`ivfflat.probes` of them — **one**, by default. With more lists than rows most
+clusters are empty, so a probe can land on an empty cluster and the query returns
+fewer rows than requested.
+
+Observed with 5 chunks in the table:
+
+```
+Q: What is the GST registration number?
+   (zero results)
+```
+
+Three chunks contained the answer. The query asked for two and got none.
+
+**This is a correctness bug, not a performance tradeoff.** A retrieval layer that
+silently returns nothing produces "I could not find that in the document" for a
+fact plainly printed on the page, and nothing distinguishes that from a genuine
+miss. The user has no way to tell they were lied to.
+
+Dropping the index fixed it, and also fixed a ranking failure: "How much did the
+mouse cost?" had been returning the wrong invoice entirely and now returns the
+right one at distance 0.366.
+
+Exact search over a local corpus is instant. An index belongs here when there are
+enough rows to need one, and it should be **HNSW**, which has no equivalent
+under-filled failure mode. Adding IVFFlat at this scale was optimising a
+non-problem and introducing a real one.
+
+The migration comment in `002` even warned that too many lists makes each probe
+search near-empty partitions. Writing the warning and then setting `lists = 10`
+on an empty table is its own lesson.
+
+---
+
+## D-013 · `heartbeatTimeout`, not `startToCloseTimeout`, is what makes a run resumable
+
+**2026-10-08**
+
+The OCR activity heartbeats once per page. Without a `heartbeatTimeout` on the
+activity options, that achieves nothing: Temporal has no deadline to measure the
+beats against, so a worker that dies mid-transcription is only noticed when
+`startToCloseTimeout` expires — 35 minutes here.
+
+"Kill the worker and the run resumes" was technically true and practically
+useless until this was set.
+
+With `heartbeatTimeout: '2 minutes'`, the recovery is visible in the history:
+
+```
+11  16:51:12  ActivityTaskScheduled     OCR queued, worker 1 claims it
+              — worker 1 killed —
+12  16:53:13  ActivityTaskStarted       worker 2 picks it up, 2 min later
+13  16:54:23  ActivityTaskCompleted
+41  16:55:33  WorkflowExecutionCompleted
+```
+
+The gap between 11 and 12 is the heartbeat deadline expiring.
+
+### The corollary, which matters as much
+
+`classify` and `extract` are in a **separate proxy with no heartbeat deadline**,
+because they are single model calls with no progress to report. Giving them one
+would kill them mid-call while they were working correctly — the exact opposite
+of what the setting is for.
+
+So the rule is: an activity gets a heartbeat deadline **only if it can heartbeat**.
+The cost is that a worker dying during classification or extraction is noticed
+only at start-to-close. That is an honest trade rather than an oversight: an
+activity that cannot report progress cannot be monitored for progress.

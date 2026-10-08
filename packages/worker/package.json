@@ -1,0 +1,27 @@
+{
+  "name": "@ocr/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Temporal workflows and activities. The durable half of the pipeline.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@ocr/core": "*",
+    "@ocr/shared": "*",
+    "@temporalio/activity": "^1.11.6",
+    "@temporalio/worker": "^1.11.6",
+    "@temporalio/workflow": "^1.11.6",
+    "@ocr/server": "*"
+  }
+}

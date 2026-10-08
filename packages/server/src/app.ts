@@ -15,7 +15,9 @@ import {
 } from './repositories/documents.js'
 import { findFileById } from './repositories/files.js'
 import { readStoredFile } from './storage/fileStore.js'
-import { DuplicateDocument, ingestDocument } from './services/ingest.js'
+import { DuplicateDocument, describeRun, startExtraction } from './services/runs.js'
+import { askDocument } from './services/qa.js'
+import { handleMcpRequest } from './mcp.js'
 import { RoleUnconfiguredError, providerForRole, type ServerConfig } from './config.js'
 
 /**
@@ -34,6 +36,16 @@ const upload = multer({
 export function createApp(config: ServerConfig): Express {
   const app = express()
   app.use(express.json({ limit: '1mb' }))
+
+  // The agent surface, on this same app and port (FR-7.1). Mounted before the
+  // REST routes only so it is visible first when reading the file.
+  app.post('/mcp', async (req, res, next) => {
+    try {
+      await handleMcpRequest(config, req, res)
+    } catch (error) {
+      next(error)
+    }
+  })
 
   app.get('/api/health', async (_req, res) => {
     const binding = config.roles.extract
@@ -65,24 +77,29 @@ export function createApp(config: ServerConfig): Express {
           return
         }
         const pages = parsePageSelection(req.body?.pages)
-        const document = await ingestDocument({
+        // 202 and a run id, not a held-open connection. Extraction takes minutes
+        // on local hardware, which is far too long for an HTTP request (FR-1.5).
+        const run = await startExtraction({
           bytes: new Uint8Array(req.file.buffer),
           filename: req.file.originalname,
           mime: req.file.mimetype,
-          config,
-          ...(pages ? { pages } : {}),
-          // Logged rather than streamed for now. Real per-stage progress needs
-          // the orchestrator, which is Phase 6; until then the client sees one
-          // long request and this is what explains the wait in the server log.
-          onProgress: (stage, detail) =>
-            console.log(`  [${uploadLabel(req)}] ${stage}${detail ? ` — ${detail}` : ''}`),
+          pages: pages ?? undefined,
         })
-        res.status(201).json(document)
+        res.status(202).json(run)
       } catch (error) {
         next(error)
       }
     },
   )
+
+  /** Poll a run. Temporal is the run history, so this reads from it directly. */
+  app.get('/api/runs/:workflowId', async (req, res, next) => {
+    try {
+      res.json(await describeRun(req.params.workflowId))
+    } catch (error) {
+      next(error)
+    }
+  })
 
   app.get('/api/documents', async (req, res, next) => {
     try {
@@ -132,6 +149,25 @@ export function createApp(config: ServerConfig): Express {
 
       const updated = await updateEditedData(req.params.id, req.body)
       res.json(updated)
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  /** Q&A over one document, or over the whole corpus when id is 'all'. */
+  app.post('/api/documents/:id/ask', async (req, res, next) => {
+    try {
+      const question = typeof req.body?.question === 'string' ? req.body.question.trim() : ''
+      if (!question) {
+        res.status(400).json({ error: 'Send { "question": "..." }' })
+        return
+      }
+      const answer = await askDocument({
+        question,
+        ...(req.params.id === 'all' ? {} : { documentId: req.params.id }),
+        config,
+      })
+      res.json(answer)
     } catch (error) {
       next(error)
     }

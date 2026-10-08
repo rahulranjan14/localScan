@@ -11,6 +11,9 @@
       "path": "./packages/server"
     },
     {
+      "path": "./packages/worker"
+    },
+    {
       "path": "./packages/eval"
     }
   ]

@@ -10,16 +10,27 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "default": "./dist/db/index.js"
+    },
+    "./env": {
+      "types": "./dist/env.d.ts",
+      "default": "./dist/env.js"
     }
   },
   "scripts": {
     "build": "tsc --build",
     "dev": "tsx watch src/main.ts",
-    "migrate": "tsx src/db/migrate.ts"
+    "migrate": "tsx src/db/migrate.ts",
+    "worker": "tsx ../worker/src/main.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@ocr/core": "*",
     "@ocr/shared": "*",
+    "@temporalio/client": "^1.24.0",
     "dotenv": "^18.0.6",
     "express": "^4.21.2",
     "multer": "^1.4.5-lts.1",
