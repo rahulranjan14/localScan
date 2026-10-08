@@ -24,12 +24,8 @@
     "spike:rasterise": "tsx --expose-gc scripts/spike-rasterise.mts"
   },
   "devDependencies": {
-    "@hyzyla/pdfium": "^2.1.13",
-    "@napi-rs/canvas": "^1.0.10",
     "@types/node": "^22.10.2",
     "concurrently": "^9.2.4",
-    "pdf-to-img": "^6.3.0",
-    "sharp": "^0.35.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",

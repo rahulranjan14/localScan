@@ -1,0 +1,60 @@
+{
+  "groups": [
+    {
+      "title": "Candidate",
+      "fields": [
+        { "path": "contact.name", "label": "Name", "type": "text" },
+        { "path": "contact.email", "label": "Email", "type": "text" },
+        { "path": "contact.phone", "label": "Phone", "type": "text" },
+        { "path": "contact.location", "label": "Location", "type": "text" },
+        { "path": "headline", "label": "Headline", "type": "text" }
+      ]
+    },
+    {
+      "title": "Summary",
+      "fields": [{ "path": "summary", "label": "Summary", "type": "textarea" }]
+    }
+  ],
+  "tables": [
+    {
+      "path": "employment",
+      "title": "Employment",
+      "addable": true,
+      "items": "objects",
+      "columns": [
+        { "path": "employer", "label": "Employer", "type": "text" },
+        { "path": "title", "label": "Title", "type": "text" },
+        { "path": "startDate", "label": "From", "type": "text", "width": "7rem" },
+        { "path": "endDate", "label": "To", "type": "text", "width": "7rem" },
+        { "path": "location", "label": "Location", "type": "text" }
+      ]
+    },
+    {
+      "path": "education",
+      "title": "Education",
+      "addable": true,
+      "items": "objects",
+      "columns": [
+        { "path": "institution", "label": "Institution", "type": "text" },
+        { "path": "qualification", "label": "Qualification", "type": "text" },
+        { "path": "field", "label": "Field", "type": "text" },
+        { "path": "endDate", "label": "Year", "type": "text", "width": "6rem" },
+        { "path": "result", "label": "Result", "type": "text", "width": "7rem" }
+      ]
+    },
+    { "path": "skills", "title": "Skills", "addable": true, "items": "strings" },
+    { "path": "certifications", "title": "Certifications", "addable": true, "items": "strings" },
+    { "path": "languages", "title": "Languages", "addable": true, "items": "strings" },
+    { "path": "contact.links", "title": "Links", "addable": true, "items": "strings" },
+    {
+      "path": "extraFields",
+      "title": "Other fields found in the document",
+      "addable": true,
+      "items": "objects",
+      "columns": [
+        { "path": "key", "label": "Field", "type": "text" },
+        { "path": "value", "label": "Value", "type": "text" }
+      ]
+    }
+  ]
+}

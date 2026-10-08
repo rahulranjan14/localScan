@@ -54,15 +54,25 @@ export function DynamicForm({ data, uiSchema, readOnly = false, onChange }: Prop
         </section>
       ))}
 
-      {uiSchema.tables.map((table) => (
-        <Table
-          key={table.path}
-          table={table}
-          rows={asRows(getByPath(data, table.path))}
-          readOnly={readOnly}
-          onChange={(rows) => onChange(setByPath(data, table.path, rows))}
-        />
-      ))}
+      {uiSchema.tables.map((table) =>
+        table.items === 'strings' ? (
+          <StringList
+            key={table.path}
+            table={table}
+            values={asStrings(getByPath(data, table.path))}
+            readOnly={readOnly}
+            onChange={(values) => onChange(setByPath(data, table.path, values))}
+          />
+        ) : (
+          <Table
+            key={table.path}
+            table={table}
+            rows={asRows(getByPath(data, table.path))}
+            readOnly={readOnly}
+            onChange={(rows) => onChange(setByPath(data, table.path, rows))}
+          />
+        ),
+      )}
 
       {orphans.length > 0 && (
         <section className="group">
@@ -222,7 +232,69 @@ function Table({
   )
 }
 
+/**
+ * An array of plain strings: a skills list, languages, links.
+ *
+ * Rendered as one input per element rather than a one-column grid, because a
+ * header row above a single column is noise.
+ */
+function StringList({
+  table,
+  values,
+  readOnly,
+  onChange,
+}: {
+  table: UiTable
+  values: string[]
+  readOnly: boolean
+  onChange: (values: string[]) => void
+}) {
+  return (
+    <section className="group">
+      <h3>
+        {table.title} <span className="dim">({values.length})</span>
+      </h3>
+      {values.length === 0 ? (
+        <p className="dim" style={{ fontSize: 13 }}>None found in the document.</p>
+      ) : (
+        values.map((value, index) => (
+          <div className="field" key={index}>
+            <label className="dim" style={{ paddingTop: 6 }}>{index + 1}</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={value}
+                readOnly={readOnly}
+                onChange={(event) =>
+                  onChange(values.map((v, i) => (i === index ? event.target.value : v)))
+                }
+              />
+              {!readOnly && (
+                <button
+                  className="subtle tiny"
+                  title="Remove this item"
+                  onClick={() => onChange(values.filter((_, i) => i !== index))}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+      {!readOnly && table.addable && (
+        <button className="subtle tiny" style={{ marginTop: 6 }} onClick={() => onChange([...values, ''])}>
+          + Add
+        </button>
+      )}
+    </section>
+  )
+}
+
 /** Tolerates a non-array where the layout expects one, rather than crashing. */
 function asRows(value: unknown): Data[] {
   return Array.isArray(value) ? (value as Data[]) : []
+}
+
+function asStrings(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((v) => (v === null || v === undefined ? '' : String(v))) : []
 }

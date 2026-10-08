@@ -27,7 +27,18 @@ export const UiTableSchema = z.object({
   path: z.string().min(1),
   title: z.string().min(1),
   addable: z.boolean().default(false),
-  columns: z.array(UiFieldSchema),
+  /**
+   * `objects` renders a grid using `columns`. `strings` renders one input per
+   * element, for an array of plain strings such as a skills list.
+   *
+   * The alternative was wrapping every string list in a single-key object so one
+   * renderer could serve both. That would mean a schema shaped for the form
+   * rather than for the data, and `skills: [{ value: 'TypeScript' }]` is worse
+   * for every consumer — the API, the agent surface, the eval harness — in order
+   * to spare the frontend a branch.
+   */
+  items: z.enum(['objects', 'strings']).default('objects'),
+  columns: z.array(UiFieldSchema).default([]),
 })
 export type UiTable = z.infer<typeof UiTableSchema>
 

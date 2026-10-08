@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import { InvoiceSchema } from './invoice.js'
+import { ResumeSchema } from './resume.js'
 
 /**
  * A document type is three artifacts and one entry here (FR-4.1):
@@ -24,6 +25,13 @@ export const DOCUMENT_TYPES = {
     slug: 'invoice',
     label: 'Invoice',
     schema: InvoiceSchema,
+  },
+  // The second type exists to prove the first claim in this file: it shares no
+  // field with an invoice, and adding it required no engine change.
+  resume: {
+    slug: 'resume',
+    label: 'Resume / CV',
+    schema: ResumeSchema,
   },
 } as const satisfies Record<string, DocumentTypeDefinition>
 
