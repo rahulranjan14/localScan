@@ -23,6 +23,8 @@ export interface OcrInput {
   signal?: AbortSignal
   /** Called as each page finishes, because a multi-page document takes minutes. */
   onPage?: (page: number, of: number, durationMs: number) => void
+  /** Called while a page is being transcribed, with characters produced so far. */
+  onPageProgress?: (page: number, charactersSoFar: number) => void
 }
 
 export interface OcrResult {
@@ -53,6 +55,9 @@ export async function ocrPages(input: OcrInput): Promise<OcrResult> {
         images: [page.png],
         temperature: 0,
         maxOutputTokens: input.maxTokensPerPage ?? DEFAULT_MAX_TOKENS_PER_PAGE,
+        ...(input.onPageProgress
+          ? { onProgress: (chars: number) => input.onPageProgress!(page.page, chars) }
+          : {}),
         ...(input.signal ? { signal: input.signal } : {}),
       })
       pages.push({ page: page.page, text: text.trim() })

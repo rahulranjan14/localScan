@@ -93,6 +93,7 @@ const PING_TIMEOUT_MS = 3_000
 interface OllamaGenerateResponse {
   response?: string
   error?: string
+  done?: boolean
   done_reason?: string
   prompt_eval_count?: number
   eval_count?: number
@@ -155,10 +156,8 @@ export class OllamaProvider implements LlmProvider {
   }
 
   async chat(options: ChatOptions): Promise<string> {
-    const body = this.generateBody(options)
-    const result = await this.post<OllamaGenerateResponse>('/api/generate', body, options.signal)
-    options.onUsage?.(readUsage(result))
-    return result.response ?? ''
+    const { text } = await this.generate(this.generateBody(options), options)
+    return text
   }
 
   /**
@@ -175,10 +174,7 @@ export class OllamaProvider implements LlmProvider {
       format: toOllamaJsonSchema(schema),
     }
 
-    const result = await this.post<OllamaGenerateResponse>('/api/generate', body, options.signal)
-    const usage = readUsage(result)
-    options.onUsage?.(usage)
-    const raw = result.response ?? ''
+    const { text: raw, usage } = await this.generate(body, options)
 
     // Hitting the ceiling means the JSON is cut mid-token. Saying so is far
     // more useful than the parse error that follows, which only reports that
@@ -218,8 +214,8 @@ export class OllamaProvider implements LlmProvider {
       ...this.generateBody(rest),
       images: images.map((image) => Buffer.from(image).toString('base64')),
     }
-    const result = await this.post<OllamaGenerateResponse>('/api/generate', body, options.signal)
-    return result.response ?? ''
+    const { text } = await this.generate(body, options)
+    return text
   }
 
   async embed(texts: string[]): Promise<number[][]> {
@@ -288,18 +284,93 @@ export class OllamaProvider implements LlmProvider {
     return capabilities
   }
 
+  /**
+   * Every generation goes through here, and it streams.
+   *
+   * Streaming is not for progress -- it is the only way the request survives.
+   * Node's built-in fetch is undici, whose `headersTimeout` defaults to **300
+   * seconds**, and with `stream: false` Ollama sends no response headers until
+   * the whole generation is finished. So any request taking over five minutes
+   * was aborted by the HTTP client no matter what timeout this class asked for,
+   * and it surfaced as a *connection* error rather than a timeout -- which is
+   * what made it look like the inference host had gone away.
+   *
+   * Streaming fixes both halves: headers arrive immediately, and the chunks that
+   * follow keep undici's body timer alive for as long as the model is working.
+   * The progress callback is a side benefit.
+   */
+  private async generate(
+    body: Record<string, unknown>,
+    options: Pick<ChatOptions, 'signal' | 'onUsage' | 'onProgress'>,
+  ): Promise<{ text: string; usage: GenerationUsage }> {
+    const response = await this.openStream({ ...body, stream: true }, options.signal)
+
+    let text = ''
+    let final: OllamaGenerateResponse | null = null
+
+    for await (const chunk of readNdjson<OllamaGenerateResponse>(response)) {
+      if (chunk.error) throw new ProviderError(`Ollama: ${chunk.error}`)
+      if (chunk.response) {
+        text += chunk.response
+        options.onProgress?.(text.length)
+      }
+      // The last object carries the counts and the stop reason; the rest carry
+      // only a token, so stats must be taken from the final one.
+      if (chunk.done) final = chunk
+    }
+
+    const usage = readUsage(final ?? {})
+    options.onUsage?.(usage)
+    return { text, usage }
+  }
+
   private generateBody(options: ChatOptions): Record<string, unknown> {
     return {
       model: this.model,
       prompt: options.prompt,
       ...(options.system ? { system: options.system } : {}),
-      stream: false,
       options: {
         temperature: options.temperature ?? 0,
         num_ctx: options.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
         num_predict: options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       },
     }
+  }
+
+  /**
+   * Opens a streaming POST and hands back the response unread.
+   *
+   * Separate from `fetchJson` because that one awaits the whole body, which is
+   * exactly the behaviour being avoided here.
+   */
+  private async openStream(body: unknown, signal?: AbortSignal): Promise<Response> {
+    const url = `${this.baseUrl}/api/generate`
+    const timeout = AbortSignal.timeout(this.timeoutMs)
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: combined,
+      })
+    } catch (cause) {
+      if (timeout.aborted) throw new ProviderTimeoutError(this.baseUrl, this.timeoutMs, cause)
+      throw new ProviderUnreachableError(this.baseUrl, cause)
+    }
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '')
+      if (response.status === 404) throw new ModelNotInstalledError(this.model, this.baseUrl)
+      throw new ProviderError(
+        `Ollama responded ${response.status} for /api/generate: ${detail.slice(0, 200)}`,
+      )
+    }
+
+    if (!response.body) throw new ProviderError('Ollama returned no response body')
+    return response
   }
 
   private async post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
@@ -363,4 +434,40 @@ export function toOllamaJsonSchema(schema: z.ZodType): Record<string, unknown> {
   const jsonSchema = z.toJSONSchema(schema, { io: 'output' }) as Record<string, unknown>
   const { $schema: _ignored, ...rest } = jsonSchema
   return rest
+}
+
+/**
+ * Yields each JSON object from an NDJSON stream.
+ *
+ * Buffers partial lines, because a chunk boundary falls wherever TCP decides and
+ * routinely lands mid-object. Parsing per chunk rather than per line produces
+ * intermittent syntax errors on long responses -- the failure appears only under
+ * load, which is the worst way to find it.
+ */
+async function* readNdjson<T>(response: Response): AsyncGenerator<T> {
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      let newline: number
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newline).trim()
+        buffer = buffer.slice(newline + 1)
+        if (line) yield JSON.parse(line) as T
+      }
+    }
+
+    const last = buffer.trim()
+    if (last) yield JSON.parse(last) as T
+  } finally {
+    // Releasing matters on an early exit -- an abandoned reader holds the socket.
+    reader.releaseLock()
+  }
 }

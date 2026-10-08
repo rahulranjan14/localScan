@@ -32,6 +32,13 @@ export interface ChatOptions {
    * visible here (see `GenerationUsage.stoppedBecause`).
    */
   onUsage?: (usage: GenerationUsage) => void
+  /**
+   * Called as output accumulates, with the character count so far.
+   *
+   * Useful because a long generation is otherwise indistinguishable from a hung
+   * one, which cost real time to diagnose more than once.
+   */
+  onProgress?: (charactersSoFar: number) => void
 }
 
 export interface GenerationUsage {

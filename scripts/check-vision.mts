@@ -95,7 +95,12 @@ const result = await ocrPages({
   pages: rendered,
   maxTokensPerPage: Number(values['max-tokens']),
   onPage: (page, of, ms) =>
-    console.log(dim(`  page ${page}/${of} done in ${(ms / 1000).toFixed(1)}s`)),
+    console.log(`\n${dim(`  page ${page}/${of} done in ${(ms / 1000).toFixed(1)}s`)}`),
+  // Printed live so a slow page is visibly working rather than possibly hung --
+  // the distinction that cost the most time getting here.
+  onPageProgress: (page, chars) => {
+    if (chars % 200 < 20) process.stdout.write(dim(`\r  page ${page}: ${chars} chars…`))
+  },
 })
 
 for (const failure of result.failures) {
