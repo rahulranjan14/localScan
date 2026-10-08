@@ -23,7 +23,8 @@
     "extract": "tsx scripts/extract.mts",
     "spike:rasterise": "tsx --expose-gc scripts/spike-rasterise.mts",
     "check:vision": "tsx scripts/check-vision.mts",
-    "eval": "tsx packages/eval/src/cli.ts"
+    "eval": "tsx packages/eval/src/cli.ts",
+    "proxy": "node scripts/lan-proxy.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
