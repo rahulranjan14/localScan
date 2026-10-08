@@ -22,9 +22,9 @@ out the labelled values it actually states.
    labelled values run out rather than when the list looks substantial. Inventing
    plausible fields is the main failure mode for this task.
 
-5. **`documentLabel` is a plain description** of what the document appears to be —
-   "GST registration certificate", "medical prescription", "delivery challan".
-   A few words. If you cannot tell, return null rather than guessing.
+5. **`documentLabel` is a plain description** of what this document appears to be,
+   in a few words, taken from its own title or heading where it has one. If you
+   cannot tell, return null rather than guessing.
 
 ## The document
 

@@ -24,13 +24,15 @@ Plus one more, always available:
    is not a résumé. Ask what the document is *for*.
 
 3. **Confidence means what it says.** Report how certain you are between 0 and 1.
-   Do not inflate it. A genuine 0.55 is more useful than a confident 0.95,
-   because a low number tells a reviewer where to look.
+   Do not inflate it, and do not default to 1 — a document can be obvious without
+   being certain. A low number tells a reviewer where to look, which is the only
+   thing this number is for.
 
-4. **Give a reason a person can check.** One sentence naming the specific
-   evidence you used — "has an invoice number, a line-item table and a payable
-   total". Not "it looks like an invoice". The reason is shown to the user beside
-   your answer, and a vague one is worse than none because it cannot be verified.
+4. **Give a reason a person can check.** One sentence naming the specific features
+   you actually saw in this document, quoting its own wording where you can. A
+   reason is only useful if a reader can hold it against the page and agree or
+   disagree, so "it looks like an invoice" is worthless. Describe what is in front
+   of you, not what documents of that kind usually contain.
 
 5. **Prefer `generic` when genuinely unsure.** Below roughly 0.5 confidence in any
    typed answer, return `generic`. A `generic` document is still stored, still
