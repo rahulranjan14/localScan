@@ -6,7 +6,7 @@ import { loadUiSchema } from '@ocr/core'
 import type { Request, Response } from 'express'
 import { findDocumentById, listDocuments } from './repositories/documents.js'
 import { countChunks } from './repositories/chunks.js'
-import { ingestDocument } from './services/ingest.js'
+import { runExtraction } from './services/runs.js'
 import { askDocument } from './services/qa.js'
 import { providerForRole, type ServerConfig } from './config.js'
 
@@ -57,23 +57,18 @@ export function createMcpServer(config: ServerConfig): McpServer {
       },
     },
     async ({ filename, content_base64, pages }) => {
-      const document = await ingestDocument({
+      // Starts a durable run and waits for it, so the agent gets an answer
+      // rather than a run id to poll. If the worker dies mid-run this call waits
+      // while the run resumes elsewhere.
+      const result = await runExtraction({
         bytes: new Uint8Array(Buffer.from(content_base64, 'base64')),
         filename,
         mime: 'application/pdf',
-        config,
         ...(pages
           ? { pages: pages.split(',').map((p) => Number(p.trim())).filter(Number.isInteger) }
           : {}),
       })
-      return text({
-        id: document.id,
-        type: document.type,
-        status: document.status,
-        confidence: document.confidence,
-        data: document.structuredData,
-        error: document.error,
-      })
+      return text(result)
     },
   )
 
