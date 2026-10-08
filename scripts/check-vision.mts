@@ -91,7 +91,7 @@ console.log(dim(`\n  Transcribing. Minutes per page on CPU is normal.\n`))
 
 const result = await ocrPages({
   provider,
-  promptTemplate: await loadOcrPrompt(),
+  promptTemplate: await loadOcrPrompt(values.model!),
   pages: rendered,
   maxTokensPerPage: Number(values['max-tokens']),
   onPage: (page, of, ms) =>

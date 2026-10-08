@@ -120,10 +120,13 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
       ...(input.pages ? { pages: input.pages } : {}),
     })
 
-    say('ocr', `${rendered.length} page(s)`)
+    const ocrProvider = providerForRole(input.config, 'ocr')
+    say('ocr', `${rendered.length} page(s) via ${ocrProvider.model}`)
     const ocr = await ocrPages({
-      provider: providerForRole(input.config, 'ocr'),
-      promptTemplate: await loadOcrPrompt(),
+      provider: ocrProvider,
+      // Resolved per model: a transcription prompt written for one VLM can
+      // produce nothing at all on another (see loadOcrPrompt).
+      promptTemplate: await loadOcrPrompt(ocrProvider.model),
       pages: rendered,
       onPage: (page, of, ms) => say('ocr', `page ${page}/${of} in ${(ms / 1000).toFixed(0)}s`),
     })

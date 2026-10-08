@@ -85,8 +85,35 @@ export async function loadClassifierPrompt(): Promise<string> {
   return loadRootPrompt('_classifier')
 }
 
-/** The page-transcription prompt, shared by every document type. */
-export async function loadOcrPrompt(): Promise<string> {
+/**
+ * The page-transcription prompt, optionally specialised per model.
+ *
+ * Transcription prompts are **not portable between models**, which was expensive
+ * to learn. The same image and the same model produced, depending only on how it
+ * was asked:
+ *
+ *   `<image>\nFree OCR.`              → a perfect 71-character transcription
+ *   `<image>\n<|grounding|>…markdown` → bounding boxes, and `INV- 7` for `INV-7`
+ *   `Read all text in this image.`    → silently dropped the first line
+ *   a six-rule instruction prompt     → **empty output**, after 119 seconds
+ *
+ * That last one is why this exists. deepseek-ocr is a specialist OCR model with a
+ * fixed prompt convention, not a general instruction-following VLM, and giving it
+ * careful instructions written for granite or qwen-vl produces nothing at all --
+ * with no error to explain why.
+ *
+ * So: `documents/_ocr.<model>.md` if present, otherwise `documents/_ocr.md`. A
+ * file on disk, discoverable by anyone adding a model, rather than a lookup table
+ * in the source.
+ */
+export async function loadOcrPrompt(model?: string): Promise<string> {
+  if (model) {
+    // `deepseek-ocr:3b` → `_ocr.deepseek-ocr.md`. The tag is dropped because the
+    // convention belongs to the model, not to a particular quantisation of it.
+    const base = model.split(':')[0]!.toLowerCase()
+    const specialised = await loadRootPrompt(`_ocr.${base}`).catch(() => null)
+    if (specialised !== null) return specialised
+  }
   return loadRootPrompt('_ocr')
 }
 
