@@ -22,7 +22,8 @@
     "check:inference": "tsx scripts/check-inference.mts",
     "extract": "tsx scripts/extract.mts",
     "spike:rasterise": "tsx --expose-gc scripts/spike-rasterise.mts",
-    "check:vision": "tsx scripts/check-vision.mts"
+    "check:vision": "tsx scripts/check-vision.mts",
+    "eval": "tsx packages/eval/src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
