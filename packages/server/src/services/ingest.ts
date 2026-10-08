@@ -43,6 +43,14 @@ import { RoleUnconfiguredError, providerForRole, type ServerConfig } from '../co
  * classifier choosing a schema and, later, the retrieval loop (PRD non-goals).
  */
 
+/**
+ * Below this, a transcription is treated as having failed.
+ *
+ * Low on purpose: a genuinely sparse page -- a stamp, a signature block -- should
+ * still be stored. This is meant to catch *nothing at all*, not thin content.
+ */
+const MIN_USEFUL_TRANSCRIPTION = 20
+
 export class DuplicateDocument extends Error {
   constructor(readonly existing: DocumentRow) {
     super('This document has already been processed')
@@ -120,7 +128,16 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
       onPage: (page, of, ms) => say('ocr', `page ${page}/${of} in ${(ms / 1000).toFixed(0)}s`),
     })
 
-    if (ocr.pages.length === 0) {
+    // An empty transcription is a failure, not a success with nothing in it.
+    //
+    // Checking page *count* is not enough: a model can return a page whose text
+    // is an empty string, which deepseek-ocr:3b did on its first run here. That
+    // sailed through as status=completed with 15 characters stored -- a record
+    // claiming success for a document nothing had read. Classification then
+    // honestly reported generic at 0.00 confidence, which was the only clue.
+    const transcribed = ocr.pages.reduce((n, page) => n + page.text.trim().length, 0)
+
+    if (ocr.pages.length === 0 || transcribed < MIN_USEFUL_TRANSCRIPTION) {
       return insertDocument({
         fileId: file.id,
         type: GENERIC_TYPE,
@@ -130,7 +147,12 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
         classificationReason: null,
         status: 'failed',
         error:
-          `Transcription failed on every page. ` +
+          (ocr.pages.length === 0
+            ? `Transcription failed on every page. `
+            : `The vision model returned almost no text (${transcribed} characters across ` +
+              `${ocr.pages.length} page(s)). The model ran without error but read nothing, ` +
+              `which usually means the wrong prompt convention for this model rather than an ` +
+              `unreadable document. `) +
           ocr.failures.map((f) => `p${f.page}: ${f.reason}`).join('; ').slice(0, 800),
       })
     }
