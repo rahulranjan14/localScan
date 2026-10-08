@@ -439,3 +439,41 @@ non-problem and introducing a real one.
 The migration comment in `002` even warned that too many lists makes each probe
 search near-empty partitions. Writing the warning and then setting `lists = 10`
 on an empty table is its own lesson.
+
+---
+
+## D-013 · `heartbeatTimeout`, not `startToCloseTimeout`, is what makes a run resumable
+
+**2026-10-08**
+
+The OCR activity heartbeats once per page. Without a `heartbeatTimeout` on the
+activity options, that achieves nothing: Temporal has no deadline to measure the
+beats against, so a worker that dies mid-transcription is only noticed when
+`startToCloseTimeout` expires — 35 minutes here.
+
+"Kill the worker and the run resumes" was technically true and practically
+useless until this was set.
+
+With `heartbeatTimeout: '2 minutes'`, the recovery is visible in the history:
+
+```
+11  16:51:12  ActivityTaskScheduled     OCR queued, worker 1 claims it
+              — worker 1 killed —
+12  16:53:13  ActivityTaskStarted       worker 2 picks it up, 2 min later
+13  16:54:23  ActivityTaskCompleted
+41  16:55:33  WorkflowExecutionCompleted
+```
+
+The gap between 11 and 12 is the heartbeat deadline expiring.
+
+### The corollary, which matters as much
+
+`classify` and `extract` are in a **separate proxy with no heartbeat deadline**,
+because they are single model calls with no progress to report. Giving them one
+would kill them mid-call while they were working correctly — the exact opposite
+of what the setting is for.
+
+So the rule is: an activity gets a heartbeat deadline **only if it can heartbeat**.
+The cost is that a worker dying during classification or extraction is noticed
+only at start-to-close. That is an honest trade rather than an oversight: an
+activity that cannot report progress cannot be monitored for progress.
