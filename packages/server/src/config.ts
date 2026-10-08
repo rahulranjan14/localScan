@@ -1,7 +1,7 @@
 // First, so every variable read below reflects .env as well as the environment.
 import './env.js'
 import { ROLES, type Role, type RoleBinding } from '@ocr/shared'
-import { OllamaProvider, type LlmProvider } from '@ocr/core'
+import { OllamaProvider, TIMEOUTS, type LlmProvider } from '@ocr/core'
 
 /**
  * Phase 1 reads role bindings from the environment.
@@ -61,7 +61,13 @@ export function providerForRole(config: ServerConfig, role: Role): LlmProvider {
 
   switch (binding.provider) {
     case 'ollama':
-      return new OllamaProvider({ model: binding.model, baseUrl: config.ollamaBaseUrl })
+      return new OllamaProvider({
+        model: binding.model,
+        baseUrl: config.ollamaBaseUrl,
+        // Per role, because vision on CPU and a three-field classification differ
+        // by two orders of magnitude (see TIMEOUTS).
+        timeoutMs: TIMEOUTS[role],
+      })
     default:
       // openai and google arrive in Phase 7. Failing loudly beats falling back
       // to a different provider than the user asked for.

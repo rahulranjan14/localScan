@@ -82,17 +82,26 @@ export async function loadUiSchema(slug: string): Promise<UiSchema | null> {
  * between them.
  */
 export async function loadClassifierPrompt(): Promise<string> {
-  const cached = cache.get('_classifier')
+  return loadRootPrompt('_classifier')
+}
+
+/** The page-transcription prompt, shared by every document type. */
+export async function loadOcrPrompt(): Promise<string> {
+  return loadRootPrompt('_ocr')
+}
+
+async function loadRootPrompt(name: string): Promise<string> {
+  const cached = cache.get(name)
   if (cached !== undefined) return cached
 
-  const path = join(documentsDir(), '_classifier.md')
+  const path = join(documentsDir(), `${name}.md`)
   let contents: string
   try {
     contents = await readFile(path, 'utf8')
   } catch (cause) {
-    throw new Error(`Classifier prompt not found at ${path}`, { cause })
+    throw new Error(`Prompt not found at ${path}`, { cause })
   }
 
-  cache.set('_classifier', contents)
+  cache.set(name, contents)
   return contents
 }

@@ -22,8 +22,61 @@ export const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
  */
 const DEFAULT_CONTEXT_WINDOW = 8192
 
-/** Long enough for a cold model load on CPU, which can take tens of seconds. */
-const DEFAULT_TIMEOUT_MS = 300_000
+/**
+ * Thirty minutes, and that is not a safety margin — it is the measured cost.
+ *
+ * A vision model on CPU spends most of its time encoding the page image before
+ * emitting a single token. The predecessor system took 10-15 minutes per document
+ * and worked. An earlier 300s default here produced two timeouts that were then
+ * misread as the model being incapable, when the request simply had not finished.
+ *
+ * A timeout should answer "has this stopped making progress", not "is this slower
+ * than I would like". Those are different questions and only the first has a
+ * right answer in a constant. Per-role values are in TIMEOUTS below; a caller
+ * that knows better passes its own.
+ */
+const DEFAULT_TIMEOUT_MS = 1_800_000
+
+/**
+ * Per-role ceilings, because one number cannot serve all five.
+ *
+ * Vision on CPU and a two-field classification differ by two orders of
+ * magnitude. A single global value is wrong in both directions at once: high
+ * enough for OCR means a wedged classification call hangs for half an hour, and
+ * low enough for classification means OCR is killed mid-work.
+ */
+export const TIMEOUTS = {
+  /** Image encoding dominates, and on CPU it dominates heavily. */
+  ocr: 1_800_000,
+  /** A full document schema, up to ~2000 tokens of output. */
+  extract: 1_200_000,
+  fallback: 1_200_000,
+  /** Short work, but a cold model load alone can take minutes on CPU. */
+  classify: 900_000,
+  /** No generation, yet a first call still pays the model load. */
+  embed: 900_000,
+} as const satisfies Record<string, number>
+
+/**
+ * Nothing here is below ten minutes, deliberately.
+ *
+ * Earlier values of 5 and 2 minutes were set from how long the work *ought* to
+ * take. That is the wrong question. A timeout exists to detect that something has
+ * stopped making progress, and on CPU inference the honest answer to "how long
+ * might this legitimately take" is minutes-to-tens-of-minutes for every role,
+ * because a cold model load is paid before the first token regardless of how
+ * small the request is.
+ *
+ * Setting these tight produced exactly one outcome in practice: work that was
+ * progressing normally got killed, and the result was misread as the model being
+ * incapable. A generous ceiling costs nothing when the work succeeds, and the
+ * failure it is supposed to catch -- a wedged request -- is just as detectable at
+ * twenty minutes as at five.
+ *
+ * `ping` is the one exception and is not in this table: it is a liveness check on
+ * a 30-second poll, performs no inference, and must fail fast or the health
+ * indicator stalls and polls pile up behind it.
+ */
 
 /**
  * Generous for a filled invoice (a few hundred tokens) and still a hard stop.
