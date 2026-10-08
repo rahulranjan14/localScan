@@ -168,3 +168,44 @@ checks it.
 A real scan. Everything so far is a synthetic render: no skew, no noise, no
 compression artefacts. That is the case where a specialist OCR model should pull
 ahead of a general VLM, and it remains untested.
+
+---
+
+## Run 003 — the same document after fixing the prompts
+
+**2026-10-08** · identical to run 002 except the prompts · `tiny-invoice.pdf`
+
+Only the prompts changed. Same models, same document, same settings, so the
+difference is attributable (see `D-010`).
+
+| Field | Run 002 | Run 003 | |
+|---|---|---|---|
+| `extraFields` | 3 invented entries | **`[]`** | fixed |
+| `vendor.taxId` | `"Bluebird Ltd"` | **`null`** | fixed |
+| `subtotal` | `2500` | **`null`** | fixed |
+| `lineItems` | 1 invented row | 1 invented row | **not fixed** |
+| `invoiceNumber`, `invoiceDate`, `currency`, `total`, `vendor.name` | correct | correct | held |
+
+**Score: 5 correct, 1 fabricated** (was 5 correct, 6 fabricated).
+
+The classification reason changed from the prompt's own example sentence —
+"has an invoice number, a line-item table and a payable total" — to
+`Total: 2500.00 INR`. Terse, and quoting the document rather than the prompt,
+which is the point.
+
+### What did not fix, and why it is being left alone
+
+`lineItems` still contains one row invented from the printed total, although the
+prompt now states that a single printed total is not a line item. Confidence is
+still exactly `1.00`, although the prompt now says not to default to 1.
+
+Both may be limits of a 3B model rather than prompt problems. **They are being left
+unfixed deliberately.** Four prompt revisions were made today, each from a single
+observation on a single document; continuing would be overfitting to this fixture
+and calling it progress. The next change to these prompts should be driven by a
+score across a corpus, not by one more look at one invoice.
+
+### 2m 18s
+
+Marginally faster than run 002's 2m 27s, with both models already resident. Not a
+meaningful difference and not treated as one.
