@@ -227,3 +227,48 @@ hosts too old to report it. Note also that `/api/tags` does **not** include
 
 This changes nothing about structured output, which no field reports at all and
 which is still established by probe (`D-004`, `FR-8.9`).
+
+---
+
+## D-008 · Generation must stream, because `fetch` caps a request at 300 seconds
+
+**2026-10-08**
+
+Every Ollama call streams, including non-interactive ones where no progress is
+displayed. This is a correctness requirement, not a UX choice.
+
+Node's built-in `fetch` is undici, whose **`headersTimeout` defaults to 300
+seconds**. With `stream: false`, Ollama sends no response headers until the whole
+generation has finished. Any request over five minutes was therefore aborted by
+the HTTP client regardless of the timeout this codebase asked for — and it
+surfaced as a **connection error**, not a timeout:
+
+```
+page 1/1 done in 300.8s
+page 1 failed: Could not connect to the inference host at http://…:11434
+```
+
+Two vision runs were lost to this and read as "CPU vision inference is
+impractical, a GPU is required". Raising the timeout from 300s to 30 minutes
+changed nothing and could not have, because the limit was never ours.
+
+With streaming, headers arrive immediately and each chunk resets undici's body
+timer, so a request survives as long as the model keeps producing tokens. The
+same page then transcribed in **30.8 seconds**.
+
+This is also why the predecessor Python system ran this workload happily at
+10–15 minutes per document: `requests` has no comparable default.
+
+### What the result then showed
+
+Speed was never the problem. On an 11-line synthetic invoice, `granite3.2-vision`
+produced 186 characters against the text layer's 187 — and got three things wrong:
+
+- `From: the vendor line` dropped entirely
+- `2026-01-15` transcribed as `2023-01-15`
+- fragments (`15`, `Pvt Ltd`, `airs`) emitted before the transcription settled
+
+A 99% character match concealing a changed year is exactly the failure the
+evaluation harness exists to catch, and exactly what a character-level metric
+would have reported as success. It also confirms the text-layer-first default
+(`FR-2.2`): the free path was perfect on this document, the model path was not.
