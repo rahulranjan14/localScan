@@ -274,3 +274,86 @@ plausible, and indistinguishable from a real value once stored.
 Three runs in a row, a person reading the output found errors that counting would
 have caught mechanically. That is the case for the harness, stated for the last
 time before building it.
+
+---
+
+## Runs 005 and 006 — the harness, and the first measured prompt change
+
+**2026-10-08** · 3 fixtures · `deepseek-ocr:3b` → `llama3.2:3b` · `always_vlm`
+
+The first numbers in this project not produced by a person reading output.
+
+### Baseline (run 005)
+
+```
+F1         90.4%        correct    33
+precision  82.5%        wrong       0
+recall    100.0%        invented    7
+                        missed      0
+classification accuracy 100%
+```
+
+**Every error was a fabrication.** Zero wrong values, zero misses, perfect recall:
+the pipeline found everything on the page and misread none of it. The entire
+17.5-point precision gap was supplying values where the document is silent — a far
+more tractable problem than "82% accurate" would suggest, and visible only because
+fabrication is counted apart from error.
+
+### What counting found that reading had not
+
+Two different documents produced the **same** invented `extraFields` key:
+
+```
+simple-invoice   extraFields[0].key   "Printed Total"
+tiny-invoice     extraFields[0].key   "Printed Total"
+```
+
+The invoice prompt contained *"a single printed total is not a line item"* — a rule
+written to prevent one invention, which the model converted into another. `D-010`
+for the third time, and the first time it was found by a pattern across documents
+rather than by reading a single result.
+
+A second finding: `lineItems[0].amount` of `10000` on a document showing Qty 2 and
+Unit Price 5000 with **no amount column**. The model multiplied.
+
+### After the prompt change (run 006)
+
+```
+precision   82.5% → 91.7%    +9.2pp
+F1          90.4% → 95.7%    +5.2pp
+invented        7 →     3      −4
+
+correct        33 →    33     +0     ← no regression
+wrong           0 →     0     +0
+
+tiny-invoice.pdf   83.3% → 100.0%   +16.7pp
+simple-invoice.pdf 85.7% →  94.7%    +9.0pp
+```
+
+Four fabrications removed at the cost of nothing. `correct` held at 33 and `wrong`
+stayed at 0, which is the half of the result that cannot be checked by eye — a
+prompt change that removes an invention while quietly breaking a real field looks
+identical from one document.
+
+### The three that remain
+
+| Document | Field | Value | Kind |
+|---|---|---|---|
+| simple-invoice | `lineItems[0].amount` | `10000` | computed from 2 × 5000 |
+| sample-invoice | `currency` | `INR` | inferred — and probably true |
+| sample-invoice | `invoiceDate` | `2024-03-04` | invented from nothing |
+
+The `currency` case is worth stating plainly. It was `USD` in run 005 and `INR` in
+run 006, which is almost certainly **correct in reality** — the document carries a
+GSTIN and rupee amounts. It still scores as a fabrication because the label is
+`null`: the currency glyph does not render, so the page does not state a currency,
+and an inferred answer that happens to be true is still inference. The metric is
+behaving as intended, and the label is a judgement that someone could reasonably
+make differently.
+
+### A timing correction
+
+`sample-invoice.pdf` took **948s in run 005 and 113s in run 006** — same document,
+same models, same host. Run 005's figure was reported earlier as though it meant
+something about page density. It did not. Single-run timings on a shared CPU host
+are not measurements, and none are quoted as such from here on.
