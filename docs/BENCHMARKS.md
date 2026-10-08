@@ -209,3 +209,68 @@ score across a corpus, not by one more look at one invoice.
 
 Marginally faster than run 002's 2m 27s, with both models already resident. Not a
 meaningful difference and not treated as one.
+
+---
+
+## Run 004 — a real invoice with a real table
+
+**2026-10-08** · `packages/eval/fixtures/sample-invoice.pdf` ·
+`deepseek-ocr:3b` → `llama3.2:3b` · `always_vlm`
+
+The first document with an actual line-item table, supplied by the project owner
+rather than generated for the test.
+
+### Transcription
+
+`deepseek-ocr` preserved the table **as markdown**:
+
+```
+| Item      | Qty | Price | Amount |
+|-----------|-----|-------|--------|
+| Notebook  | 2   | 250   | 500    |
+| Pen       | 5   | 40    | 200    |
+```
+
+373 characters, structure intact — which is what made the extraction below possible.
+
+### Extraction: 11 correct, 2 invented
+
+| Field | Got | |
+|---|---|---|
+| `vendor.name` | `the vendor name` | ✓ |
+| `vendor.taxId` | `00AAAAA0000A0Z0` | ✓ |
+| `total` | `2050` | ✓ |
+| `lineItems` | all 4 rows, every cell correct | ✓ |
+| `invoiceNumber`, `subtotal`, `taxTotal`, `dueDate`, `poNumber`, all buyer fields | `null` | ✓ correctly absent |
+| `extraFields` | `[]` | ✓ |
+| **`currency`** | **`USD`** | ✗ the document shows ₹ and a GSTIN |
+| **`invoiceDate`** | **`2024-03-04`** | ✗ the document has no date at all |
+
+### What this settles
+
+**The `lineItems` invention in run 003 was document-specific.** That fixture had no
+table and the model manufactured a row from the printed total; given a real table
+it reads every cell correctly. The fault was the fixture, not the prompt or the
+model — a conclusion no single document could have supported, and the reason the
+fixture set has to grow.
+
+**The two-stage split earns its place here.** Table structure survived
+transcription and extraction consumed it. A flattened transcription would have
+lost the Qty/Price/Amount association entirely, and no amount of prompting at
+stage two could have recovered it.
+
+### What it does not settle
+
+Both errors invent a value where the document states none, and both are already
+forbidden by the prompt in as many words — *"Never guess a date"*, *"Null is a
+valid answer"*. The instruction exists and was not followed, so the next lever is
+a different model or a different mechanism, not more wording. Distinguishing those
+requires measurement.
+
+`currency: USD` on a GSTIN invoice is the more commercially dangerous.
+`invoiceDate: 2024-03-04` is the more dangerous in principle: well-formed,
+plausible, and indistinguishable from a real value once stored.
+
+Three runs in a row, a person reading the output found errors that counting would
+have caught mechanically. That is the case for the harness, stated for the last
+time before building it.
