@@ -39,6 +39,14 @@ export interface ChatOptions {
    * one, which cost real time to diagnose more than once.
    */
   onProgress?: (charactersSoFar: number) => void
+  /**
+   * Called when the response needed repair before it would parse.
+   *
+   * Surfaced rather than swallowed: a model that routinely needs its output
+   * patched is a model whose prompt or schema wants attention, and that signal
+   * disappears if the repair is silent.
+   */
+  onRepair?: (repairs: string[], stoppedBecause: GenerationUsage['stoppedBecause']) => void
 }
 
 export interface GenerationUsage {

@@ -1,5 +1,6 @@
 import type { ModelCapabilities, StructuredOutputTier } from '@ocr/shared'
 import { z } from 'zod'
+import { repairJson } from '../pipeline/repair.js'
 import {
   type GenerationUsage,
   ModelNotInstalledError,
@@ -176,20 +177,18 @@ export class OllamaProvider implements LlmProvider {
 
     const { text: raw, usage } = await this.generate(body, options)
 
-    // Hitting the ceiling means the JSON is cut mid-token. Saying so is far
-    // more useful than the parse error that follows, which only reports that
-    // the text is malformed and not why.
-    if (usage.stoppedBecause === 'length') {
-      throw new ProviderError(
-        `Model "${this.model}" was still generating at the ${usage.outputTokens}-token ceiling. ` +
-          `The output is truncated, so it cannot be valid JSON. This is usually a repetition ` +
-          `loop rather than a document that is genuinely too large.`,
-      )
-    }
-
     let parsed: unknown
     try {
-      parsed = JSON.parse(raw)
+      // Repair before giving up (FR-4.4). Attempted even when the generation hit
+      // the token ceiling, which is safe here for a specific reason: every
+      // model-facing field is required (D-005), so a truncated object cannot
+      // satisfy the schema. Zod is the backstop, which means repair can be
+      // permissive without risking a partial result being accepted as complete.
+      const repaired = repairJson(raw)
+      if (repaired.applied.length > 0) {
+        options.onRepair?.(repaired.applied, usage.stoppedBecause)
+      }
+      parsed = repaired.value
     } catch (cause) {
       // Include the text. "Not JSON" on its own is almost useless -- truncated
       // JSON, an empty string, a prose apology and a markdown code fence are
@@ -198,9 +197,13 @@ export class OllamaProvider implements LlmProvider {
       throw new ProviderError(
         `Model "${this.model}" returned output that is not JSON despite a schema being ` +
           `requested (${raw.length} chars, ${usage.outputTokens ?? '?'} tokens, ` +
-          `stopped: ${usage.stoppedBecause}).\n` +
-          `  starts: ${JSON.stringify(raw.slice(0, 220))}\n` +
-          `  ends:   ${JSON.stringify(raw.slice(-120))}`,
+          `stopped: ${usage.stoppedBecause}).` +
+          (usage.stoppedBecause === 'length'
+            ? ` It was still generating at the token ceiling, which usually means a repetition ` +
+              `loop rather than a document that is genuinely too large.`
+            : '') +
+          `\n  starts: ${JSON.stringify(raw.slice(0, 220))}` +
+          `\n  ends:   ${JSON.stringify(raw.slice(-120))}`,
         cause,
       )
     }
