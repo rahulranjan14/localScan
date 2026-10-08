@@ -1,12 +1,25 @@
-import { InvoiceSchema, type DocumentType } from '@ocr/shared'
 import {
-  extractStructured,
+  GENERIC_TYPE,
+  GenericSchema,
+  getDocumentType,
+  type DocumentType,
+} from '@ocr/shared'
+import {
+  classifyDocument,
+  extractWithFallback,
   hasUsableTextLayer,
   joinPages,
+  loadClassifierPrompt,
+  loadGenericPrompt,
+  loadOcrPrompt,
   loadPrompt,
+  ocrPages,
+  rasterizePdf,
   readTextLayer,
   validatePdfInput,
+  type LlmProvider,
 } from '@ocr/core'
+import type { z } from 'zod'
 import {
   findDocumentByFileId,
   insertDocument,
@@ -14,16 +27,20 @@ import {
 } from '../repositories/documents.js'
 import { findFileBySha256, insertFile } from '../repositories/files.js'
 import { sha256, storeFile } from '../storage/fileStore.js'
-import { providerForRole, type ServerConfig } from '../config.js'
+import { RoleUnconfiguredError, providerForRole, type ServerConfig } from '../config.js'
 
 /**
- * Phase 1 ingestion: validate, store, read text, extract, persist.
+ * Ingestion: bytes in, a stored document out.
  *
- * Runs inline inside the request. That is a known limitation, not an oversight --
- * extraction takes ~2 minutes on local hardware, which is far too long to hold a
+ * Runs inline inside the request. A known limitation, stated rather than hidden --
+ * extraction takes minutes on local hardware, which is far too long to hold a
  * connection open. Phase 6 moves this into a durable workflow and the endpoint
- * starts returning 202 plus a run id (FR-1.5). Keeping it inline until then
- * means the application is useful several phases before the orchestrator exists.
+ * starts returning 202 plus a run id (FR-1.5). Inline until then means the
+ * application is useful several phases before the orchestrator exists.
+ *
+ * The sequence is fixed on purpose. There is no planning step deciding what to do
+ * next, because the steps never vary; the autonomy in this system is the
+ * classifier choosing a schema and, later, the retrieval loop (PRD non-goals).
  */
 
 export class DuplicateDocument extends Error {
@@ -38,16 +55,21 @@ export interface IngestInput {
   filename: string
   mime: string
   config: ServerConfig
+  /** 1-based page numbers, when the user asked for a subset (FR-1.4). */
+  pages?: number[]
+  onProgress?: (stage: string, detail?: string) => void
 }
 
 export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
-  // Guards before anything parses the bytes.
+  const say = input.onProgress ?? (() => {})
+
+  // Guards before anything parses the bytes (FR-1.2).
   validatePdfInput(input.bytes)
 
   const hash = sha256(input.bytes)
 
-  // Content-addressed, so a re-upload costs nothing and returns what we already
-  // have rather than paying for extraction twice (FR-1.3).
+  // Content-addressed, so a re-upload returns what we have rather than paying
+  // for extraction twice (FR-1.3).
   const existing = await findFileBySha256(hash)
   if (existing) {
     const prior = await findDocumentByFileId(existing.id)
@@ -63,36 +85,90 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
     path: stored.path,
   })
 
+  // ── Text acquisition ────────────────────────────────────────────────────
+  say('text-layer')
   const textLayer = await readTextLayer(input.bytes)
+  let rawText: string
+  let usedVision = false
 
-  if (!hasUsableTextLayer(textLayer)) {
-    // Honest failure rather than a bad guess. Rasterisation and vision OCR are
-    // Phase 2; until then a scanned document is recorded as something the system
-    // cannot yet handle, not as an empty extraction.
-    return insertDocument({
-      fileId: file.id,
-      type: 'generic',
-      rawText: joinPages(textLayer.pages),
-      structuredData: null,
-      confidence: null,
-      classificationReason: null,
-      status: 'failed',
-      error:
-        `Only ${textLayer.pagesWithText} of ${textLayer.totalPages} pages carry text. ` +
-        `Scanned documents need the vision model, which arrives in Phase 2.`,
+  if (hasUsableTextLayer(textLayer)) {
+    // The cheap path, and the common one: a digital PDF needs no model at all,
+    // which on local hardware is the difference between seconds and minutes.
+    rawText = joinPages(
+      input.pages ? textLayer.pages.filter((p) => input.pages!.includes(p.page)) : textLayer.pages,
+    )
+    say('text-layer', `${textLayer.pagesWithText}/${textLayer.totalPages} pages, no model needed`)
+  } else {
+    usedVision = true
+    say('rasterise')
+    const rendered = await rasterizePdf(input.bytes, {
+      ...(input.pages ? { pages: input.pages } : {}),
     })
+
+    say('ocr', `${rendered.length} page(s)`)
+    const ocr = await ocrPages({
+      provider: providerForRole(input.config, 'ocr'),
+      promptTemplate: await loadOcrPrompt(),
+      pages: rendered,
+      onPage: (page, of, ms) => say('ocr', `page ${page}/${of} in ${(ms / 1000).toFixed(0)}s`),
+    })
+
+    if (ocr.pages.length === 0) {
+      return insertDocument({
+        fileId: file.id,
+        type: GENERIC_TYPE,
+        rawText: null,
+        structuredData: null,
+        confidence: null,
+        classificationReason: null,
+        status: 'failed',
+        error:
+          `Transcription failed on every page. ` +
+          ocr.failures.map((f) => `p${f.page}: ${f.reason}`).join('; ').slice(0, 800),
+      })
+    }
+
+    rawText = joinPages(ocr.pages)
+    if (ocr.failures.length > 0) {
+      say('ocr', `${ocr.failures.length} page(s) failed, continuing with the rest`)
+    }
   }
 
-  const rawText = joinPages(textLayer.pages)
+  // ── Classification ──────────────────────────────────────────────────────
+  say('classify')
+  let type: DocumentType = GENERIC_TYPE
+  let confidence: number | null = null
+  let reason: string | null = null
 
-  // Phase 1 has one type and no classifier, so everything is treated as an
-  // invoice. Phase 2 adds classification and routes to a schema.
-  const type: DocumentType = 'invoice'
+  try {
+    const classified = await classifyDocument({
+      provider: providerForRole(input.config, 'classify'),
+      promptTemplate: await loadClassifierPrompt(),
+      text: rawText,
+    })
+    type = classified.type
+    confidence = classified.confidence
+    reason = classified.reason
+    say('classify', `${type} (${confidence.toFixed(2)})`)
+  } catch (error) {
+    // A failed classification is not a failed document. Falling back to generic
+    // keeps the text stored and queryable, where aborting would discard work
+    // that already succeeded -- including minutes of OCR.
+    reason = `Classification failed, treated as generic: ${
+      error instanceof Error ? error.message : String(error)
+    }`
+    say('classify', 'failed, falling back to generic')
+  }
 
-  const result = await extractStructured({
+  // ── Extraction ──────────────────────────────────────────────────────────
+  say('extract', type)
+  const { schema, promptTemplate } = await resolveExtraction(type)
+
+  const result = await extractWithFallback({
     provider: providerForRole(input.config, 'extract'),
-    schema: InvoiceSchema,
-    promptTemplate: await loadPrompt('invoice'),
+    fallbackProvider: optionalProvider(input.config, 'fallback'),
+    schema,
+    promptTemplate,
     text: rawText,
   })
 
@@ -103,9 +179,63 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
     // Null on failure. Storing a partial result would make an unvalidated value
     // indistinguishable from a checked one the moment it lands here (FR-4.6).
     structuredData: result.ok ? result.data : null,
-    confidence: null,
-    classificationReason: null,
+    confidence,
+    classificationReason: appendNotes(reason, {
+      usedVision,
+      usedFallback: result.usedFallback,
+      injection: result.injection.matched,
+    }),
     status: result.ok ? 'completed' : 'needs_review',
     error: result.ok ? null : result.reason,
   })
+}
+
+/**
+ * Type to schema plus prompt. The only place routing happens, and it holds no
+ * per-type logic -- a new type is picked up from the registry (FR-4.1).
+ */
+async function resolveExtraction(
+  type: DocumentType,
+): Promise<{ schema: z.ZodType; promptTemplate: string }> {
+  if (type === GENERIC_TYPE) {
+    return { schema: GenericSchema, promptTemplate: await loadGenericPrompt() }
+  }
+  const definition = getDocumentType(type)
+  if (!definition) {
+    // The classifier is constrained to registry slugs, so this is unreachable
+    // unless the registry changed under a running process.
+    return { schema: GenericSchema, promptTemplate: await loadGenericPrompt() }
+  }
+  return { schema: definition.schema, promptTemplate: await loadPrompt(definition.slug) }
+}
+
+/** `fallback` is optional; an unset role must not fail the run. */
+function optionalProvider(config: ServerConfig, role: 'fallback'): LlmProvider | undefined {
+  try {
+    return providerForRole(config, role)
+  } catch (error) {
+    if (error instanceof RoleUnconfiguredError) return undefined
+    throw error
+  }
+}
+
+/**
+ * Records how the result was reached alongside why the type was chosen.
+ *
+ * Whether vision ran, whether the fallback model was needed, and whether the text
+ * tripped an injection pattern are all things a reviewer wants when a value looks
+ * wrong, and none of them are recoverable from the output afterwards.
+ */
+function appendNotes(
+  reason: string | null,
+  notes: { usedVision: boolean; usedFallback: boolean; injection: string[] },
+): string | null {
+  const parts: string[] = []
+  if (reason) parts.push(reason)
+  if (notes.usedVision) parts.push('Text came from vision OCR, not a text layer.')
+  if (notes.usedFallback) parts.push('Primary extraction failed validation; fallback model used.')
+  if (notes.injection.length > 0) {
+    parts.push(`Injection patterns seen (logged, not blocked): ${notes.injection.join(', ')}.`)
+  }
+  return parts.length > 0 ? parts.join(' ') : null
 }

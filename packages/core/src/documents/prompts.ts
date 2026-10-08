@@ -90,6 +90,11 @@ export async function loadOcrPrompt(): Promise<string> {
   return loadRootPrompt('_ocr')
 }
 
+/** Key-value extraction for documents that match no typed schema. */
+export async function loadGenericPrompt(): Promise<string> {
+  return loadRootPrompt('_generic')
+}
+
 async function loadRootPrompt(name: string): Promise<string> {
   const cached = cache.get(name)
   if (cached !== undefined) return cached

@@ -64,11 +64,18 @@ export function createApp(config: ServerConfig): Express {
           res.status(400).json({ error: 'No file uploaded. Send multipart/form-data with "file".' })
           return
         }
+        const pages = parsePageSelection(req.body?.pages)
         const document = await ingestDocument({
           bytes: new Uint8Array(req.file.buffer),
           filename: req.file.originalname,
           mime: req.file.mimetype,
           config,
+          ...(pages ? { pages } : {}),
+          // Logged rather than streamed for now. Real per-stage progress needs
+          // the orchestrator, which is Phase 6; until then the client sees one
+          // long request and this is what explains the wait in the server log.
+          onProgress: (stage, detail) =>
+            console.log(`  [${uploadLabel(req)}] ${stage}${detail ? ` — ${detail}` : ''}`),
         })
         res.status(201).json(document)
       } catch (error) {
@@ -159,6 +166,27 @@ export function createApp(config: ServerConfig): Express {
  * timeout is neither -- it means the work is genuinely slow. Collapsing these
  * into 500 would make all three look like a server bug.
  */
+/**
+ * Accepts "1,2,5" or "1, 2, 5" and ignores anything that is not a page number.
+ *
+ * Silently dropping junk rather than rejecting, because this is an optional
+ * refinement of a request that is otherwise valid -- failing an upload over a
+ * malformed page list would lose the file for no benefit.
+ */
+function parsePageSelection(value: unknown): number[] | null {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const pages = value
+    .split(',')
+    .map((part) => Number(part.trim()))
+    .filter((n) => Number.isInteger(n) && n > 0)
+  return pages.length > 0 ? [...new Set(pages)].sort((a, b) => a - b) : null
+}
+
+/** Short identifier for the server log, so concurrent uploads stay separable. */
+function uploadLabel(req: Request): string {
+  return (req.file?.originalname ?? 'upload').slice(0, 24)
+}
+
 function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction): void {
   if (error instanceof InputRejected) {
     res.status(400).json({ error: error.message, reason: error.reason })
