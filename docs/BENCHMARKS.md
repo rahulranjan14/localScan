@@ -102,7 +102,14 @@ OCR_MODEL_OCR=deepseek-ocr:3b      OCR_MODEL_EXTRACT=llama3.2:3b
 OCR_MODEL_CLASSIFY=llama3.2:3b     OCR_MODEL_FALLBACK=qwen2.5:3b
 ```
 
-### Result: 5/5 fields correct
+### Result: 5 fields correct, 6 fabricated
+
+> **Corrected after publication.** This entry originally read "5/5 fields correct".
+> That counted the five fields listed below and ignored the other twenty in the
+> schema, six of which held invented values. The corrected accounting is beneath
+> the table, and `D-010` has the cause. The original claim is left visible because
+> a benchmark that quietly edits its own results is worth less than one that does
+> not.
 
 | Field | Expected | Got | |
 |---|---|---|---|
@@ -115,6 +122,20 @@ OCR_MODEL_CLASSIFY=llama3.2:3b     OCR_MODEL_FALLBACK=qwen2.5:3b
 Transcription was character-exact. Classification returned `invoice`. The fallback
 model never fired, which also settles an open question: **`llama3.2:3b` does honour
 a requested JSON schema.**
+
+#### And the fields that were not checked
+
+| Field | Got | Document says |
+|---|---|---|
+| `vendor.taxId` | `Bluebird Ltd` | nothing — the vendor's name, duplicated |
+| `subtotal` | `2500` | nothing — only a Total is printed |
+| `lineItems` | 1 row, amount 2500 | no line-item table at all |
+| `extraFields[0]` | `paymentTerms: Net 30` | nothing |
+| `extraFields[1]` | `deliveryNoteRef: DLN-123` | nothing |
+| `extraFields[2]` | `vehicleNumber: VH-456` | nothing |
+
+The last three were copied out of the prompt, which offered exactly those three as
+examples of what `extraFields` is for. See `D-010`.
 
 **2m 27s total**, including cold loads of two models that had never been resident.
 

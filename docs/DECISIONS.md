@@ -310,3 +310,57 @@ next vision model can see that per-model prompts are expected, and add one.
 seconds warm**, against `granite3.2-vision`'s 30.8s. `CONTEXT.md` called the
 unquantised F16 size "the worst case for CPU latency", which is true of the load
 and false of the inference.
+
+---
+
+## D-010 · No concrete example values in an extraction prompt
+
+**2026-10-08**
+
+An extraction prompt may describe *what kind of thing* a field holds. It must never
+give an example *value*, because a model will emit the example as data.
+
+Found by inspecting a full extracted record rather than the handful of fields being
+checked. The invoice prompt said:
+
+> "At most a few document-level values that have no field of their own — payment
+> terms, a delivery note reference, a vehicle number."
+
+and the extraction of a five-line document containing none of those returned:
+
+```json
+"extraFields": [
+  { "key": "paymentTerms",    "value": "Net 30" },
+  { "key": "deliveryNoteRef", "value": "DLN-123" },
+  { "key": "vehicleNumber",   "value": "VH-456" }
+]
+```
+
+Three fabricated entries, one per example in the prompt. The hallucination was
+written by hand, into the instructions, by me.
+
+The same mistake was present in two other prompts and has been removed from all
+three. `_generic.md` was the worst of them, offering `Reference No: AB-1234` and
+`Valid until: 2026-03-31` — fully-formed fake values in a prompt whose whole job is
+to extract only what the page states.
+
+Two related fabrications in the same record, fixed by new rules rather than by
+removing text:
+
+- `subtotal` was `2500` on a document that prints only a Total.
+- `vendor.taxId` was `"Bluebird Ltd"` — the vendor's own name, duplicated.
+- `lineItems` held one row invented from the printed total, on a document with no
+  line-item table.
+
+So the prompt now forbids deriving one field from another, and says explicitly that
+a single printed total is not a line item.
+
+### The part worth remembering
+
+The run that produced this had been recorded as **"5/5 fields correct"**. That was
+true and misleading: five fields were checked and twenty were not. The same record
+contained six fabricated values.
+
+This is the argument for scoring *every* field in a schema against ground truth
+rather than the fields someone thought to look at — made, inconveniently, against
+my own benchmark entry.

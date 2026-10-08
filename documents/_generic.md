@@ -5,10 +5,9 @@ out the labelled values it actually states.
 
 ## Rules
 
-1. **Only what is labelled.** A value with a label beside it — `Reference No:
-   AB-1234`, `Valid until: 2026-03-31`, `Patient Name: ...`. If a value has no
-   label in the document, leave it out. The raw text is kept and stays searchable,
-   so nothing is lost by omitting it.
+1. **Only what is labelled.** Take a value only where the document prints a label
+   beside it. If a value has no label on the page, leave it out — the raw text is
+   kept and stays searchable, so nothing is lost by omitting it.
 
 2. **Keys as printed.** Use the document's own label as the key, without
    rewording. `Place of supply`, not `placeOfSupply`. Someone reviewing this is
