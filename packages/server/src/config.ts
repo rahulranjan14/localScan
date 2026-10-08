@@ -1,6 +1,6 @@
 // First, so every variable read below reflects .env as well as the environment.
 import './env.js'
-import { ROLES, type Role, type RoleBinding } from '@ocr/shared'
+import { ROLES, TEXT_MODES, type Role, type RoleBinding, type TextMode } from '@ocr/shared'
 import { OllamaProvider, TIMEOUTS, type LlmProvider } from '@ocr/core'
 
 /**
@@ -16,6 +16,7 @@ export interface ServerConfig {
   port: number
   ollamaBaseUrl: string
   roles: Record<Role, RoleBinding | null>
+  textMode: TextMode
 }
 
 function envModel(role: Role, fallback: string | null): RoleBinding | null {
@@ -40,10 +41,16 @@ export function loadConfig(): ServerConfig {
     ]),
   ) as Record<Role, RoleBinding | null>
 
+  const requested = process.env.OCR_TEXT_MODE
+  const textMode: TextMode = (TEXT_MODES as readonly string[]).includes(requested ?? '')
+    ? (requested as TextMode)
+    : 'auto'
+
   return {
     port: Number(process.env.PORT ?? 3000),
     ollamaBaseUrl,
     roles,
+    textMode,
   }
 }
 

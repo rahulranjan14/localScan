@@ -1,5 +1,6 @@
 import type { ModelCapabilities, StructuredOutputTier } from '@ocr/shared'
 import { z } from 'zod'
+import { Agent, fetch as undiciFetch } from 'undici'
 import { repairJson } from '../pipeline/repair.js'
 import {
   type GenerationUsage,
@@ -14,6 +15,32 @@ import {
 } from './types.js'
 
 export const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434'
+
+/**
+ * Undici's own timeouts, disabled, so this class is the only thing that decides
+ * when a request has waited too long.
+ *
+ * Node's built-in fetch is undici, and it enforces **two** 300-second limits:
+ * `headersTimeout` before response headers arrive, and `bodyTimeout` between body
+ * chunks. Both are invisible from the call site and both report as a connection
+ * failure rather than a timeout.
+ *
+ * Streaming alone was not enough. It fixed the first -- headers arrive at once --
+ * and then `bodyTimeout` killed the same request at 303s, because a vision model
+ * spends minutes encoding the page image before it emits a single token. There is
+ * nothing to stream during that silence.
+ *
+ * Two 300s ceilings had to be removed before a 30-minute timeout meant anything.
+ * `AbortSignal.timeout` is now the single authority, which is also simply correct:
+ * one timeout, set per role, visible where it is configured.
+ */
+const dispatcher = new Agent({
+  headersTimeout: 0,
+  bodyTimeout: 0,
+  // Connecting is the one thing that *should* fail fast: a host that will not
+  // accept a TCP connection in ten seconds is not going to.
+  connectTimeout: 10_000,
+})
 
 /**
  * Ollama's default context window is 2048 tokens. A dense multi-page document
@@ -353,12 +380,13 @@ export class OllamaProvider implements LlmProvider {
 
     let response: Response
     try {
-      response = await fetch(url, {
+      response = (await undiciFetch(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
         signal: combined,
-      })
+        dispatcher,
+      })) as unknown as Response
     } catch (cause) {
       if (timeout.aborted) throw new ProviderTimeoutError(this.baseUrl, this.timeoutMs, cause)
       throw new ProviderUnreachableError(this.baseUrl, cause)
@@ -396,7 +424,11 @@ export class OllamaProvider implements LlmProvider {
 
     let response: Response
     try {
-      response = await fetch(url, { ...init, signal })
+      response = (await undiciFetch(url, {
+        ...(init as unknown as Parameters<typeof undiciFetch>[1]),
+        signal,
+        dispatcher,
+      })) as unknown as Response
     } catch (cause) {
       // Which of these it is determines what the user should do, so they must
       // not be collapsed: a timeout means the host is working and too slow, an

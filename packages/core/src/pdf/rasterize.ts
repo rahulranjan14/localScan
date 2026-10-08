@@ -15,10 +15,25 @@ import sharp from 'sharp'
 
 export interface RasterizeOptions {
   /**
-   * Default 200. Measured on a 5-page document: 150 DPI peaks at 156 MB,
-   * 200 at 203 MB, 300 at 282 MB — all affordable, because the application host
-   * never loads a model (D-001). 200 is a starting point to be revisited once
-   * the harness can measure accuracy against it, not a tuned value.
+   * Default 150, lowered from 200 after measuring what it costs downstream.
+   *
+   * Memory was never the constraint — 150 DPI peaks at 156 MB and 300 at 282 MB,
+   * both unremarkable, because the application host loads no model (D-001). The
+   * constraint is the *vision model*, whose cost scales with image area and worse
+   * than linearly, since attention over vision tokens is quadratic:
+   *
+   *   110 DPI   934×1210  (1.1 MP)   granite3.2-vision: 30.8s
+   *   200 DPI  1700×2200  (3.7 MP)   granite3.2-vision: >10 min
+   *
+   * 3.3× the pixels cost far more than 3.3× the time, and a vision model
+   * downscales its input internally anyway — so the extra pixels are paid for and
+   * then discarded. 200 was chosen from print-quality intuition, which is the
+   * wrong frame entirely.
+   *
+   * 150 is a compromise pending accuracy measurement across DPI in Phase 3. The
+   * evidence so far suggests transcription errors are model-bound rather than
+   * resolution-bound: at 110 DPI gemma3:12b was perfect on a document where
+   * granite3.2-vision made three mistakes (see BENCHMARKS.md run 001).
    */
   dpi?: number
   /** 1-based page numbers. Omitted means every page. */
@@ -35,7 +50,7 @@ export interface RasterizedPage {
   height: number
 }
 
-const DEFAULT_DPI = 200
+const DEFAULT_DPI = 150
 const DEFAULT_MAX_PAGES = 50
 
 /** PDF user space is 72 units to the inch, so this is the scale factor. */

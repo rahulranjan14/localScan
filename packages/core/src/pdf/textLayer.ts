@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
+import type { TextMode } from '@ocr/shared'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 /**
@@ -106,4 +107,24 @@ export function hasUsableTextLayer(result: TextLayerResult): boolean {
 /** Joins pages with markers, so a later citation can name the page (FR-6.1). */
 export function joinPages(pages: PageText[]): string {
   return pages.map((p) => `--- page ${p.page} ---\n${p.text}`).join('\n\n')
+}
+
+/**
+ * Decides where a document's text should come from, given the configured mode.
+ *
+ * Pulled out of the ingestion service so it can be tested without a database or
+ * an inference host. The logic is three lines and the consequences are minutes of
+ * compute per document, which is exactly the ratio that deserves a unit test.
+ */
+export function shouldUseTextLayer(mode: TextMode, result: TextLayerResult): boolean {
+  switch (mode) {
+    // Any text at all, and never call a vision model.
+    case 'prefer_text':
+      return result.pages.some((page) => page.text.length > 0)
+    // Rasterise and transcribe regardless of what the file already contains.
+    case 'always_vlm':
+      return false
+    case 'auto':
+      return hasUsableTextLayer(result)
+  }
 }

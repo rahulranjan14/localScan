@@ -7,7 +7,7 @@ import {
 import {
   classifyDocument,
   extractWithFallback,
-  hasUsableTextLayer,
+  shouldUseTextLayer,
   joinPages,
   loadClassifierPrompt,
   loadGenericPrompt,
@@ -86,12 +86,19 @@ export async function ingestDocument(input: IngestInput): Promise<DocumentRow> {
   })
 
   // ── Text acquisition ────────────────────────────────────────────────────
-  say('text-layer')
+  //
+  // Which source to trust is a configured choice, not a fixed rule. `auto` takes
+  // the text layer when it is usable, but a text layer can be mangled in ways a
+  // rendered page is not -- this project's own corpus has one that yields
+  // `AIR_I NDIA` -- so `always_vlm` is a legitimate setting rather than a
+  // pessimisation. The harness is what decides which wins.
+  const mode = input.config.textMode
+  say('text-layer', `mode=${mode}`)
   const textLayer = await readTextLayer(input.bytes)
   let rawText: string
   let usedVision = false
 
-  if (hasUsableTextLayer(textLayer)) {
+  if (shouldUseTextLayer(mode, textLayer)) {
     // The cheap path, and the common one: a digital PDF needs no model at all,
     // which on local hardware is the difference between seconds and minutes.
     rawText = joinPages(
