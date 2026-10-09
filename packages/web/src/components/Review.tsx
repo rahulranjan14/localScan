@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type DocumentRecord } from '../api'
 import { DynamicForm } from './DynamicForm'
+import { Ask } from './Ask'
 
 /**
  * How the document type was decided, and how sure the model was.
@@ -154,6 +155,7 @@ export function Review({ id, onBack }: { id: string; onBack: () => void }) {
               an edit against. The raw text is the primary view — and it is still fully queryable
               once retrieval lands.
             </div>
+            <Ask documentId={doc.id} />
             <section className="group">
               <h3>Extracted text</h3>
               <div className="raw">{doc.rawText ?? '(none)'}</div>
@@ -166,6 +168,8 @@ export function Review({ id, onBack }: { id: string; onBack: () => void }) {
             onChange={setData}
           />
         )}
+
+        {!readOnly && <Ask documentId={doc.id} />}
 
         {!readOnly && doc.rawText && (
           <details className="group">

@@ -18,6 +18,27 @@ export interface DocumentRecord {
   duplicate?: boolean
 }
 
+/** What POST /api/documents returns now: a run to poll, not a document. */
+export interface StartedRun {
+  runId: string
+  workflowId: string
+  sha256: string
+  /** Present when the file was already processed; there is nothing to wait for. */
+  duplicate?: boolean
+  id?: string
+}
+
+export interface RunStatus {
+  workflowId: string
+  runId: string
+  /** Temporal's own vocabulary: RUNNING, COMPLETED, FAILED, TERMINATED… */
+  status: string
+  startedAt: string | null
+  closedAt: string | null
+  result?: { documentId: string; type: string; status: string }
+  error?: string
+}
+
 export interface HealthResponse {
   ok: boolean
   ollamaBaseUrl: string
@@ -50,11 +71,29 @@ export const api = {
 
   get: (id: string) => request<DocumentRecord>(`/api/documents/${id}`),
 
-  upload: (file: File) => {
+  /**
+   * Returns a run to poll, not a document.
+   *
+   * Extraction takes minutes on local hardware, so the server answers 202 with a
+   * run id rather than holding the connection open (FR-1.5). A re-upload of a
+   * file already processed answers 200 with the stored document instead, and
+   * carries `duplicate` to say so.
+   */
+  upload: (file: File, pages?: string) => {
     const form = new FormData()
     form.append('file', file)
-    return request<DocumentRecord>('/api/documents', { method: 'POST', body: form })
+    if (pages) form.append('pages', pages)
+    return request<StartedRun>('/api/documents', { method: 'POST', body: form })
   },
+
+  run: (workflowId: string) => request<RunStatus>(`/api/runs/${workflowId}`),
+
+  ask: (documentId: string, question: string) =>
+    request<AskAnswer>(`/api/documents/${documentId}/ask`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question }),
+    }),
 
   save: (id: string, data: unknown) =>
     request<DocumentRecord>(`/api/documents/${id}`, {
@@ -64,4 +103,13 @@ export const api = {
     }),
 
   fileUrl: (fileId: string) => `/api/files/${fileId}`,
+}
+
+export interface AskAnswer {
+  answer: string
+  /** Pages the answer drew on. The reason chunking is page-aware. */
+  citations: number[]
+  /** Every query tried, original first — shows the self-corrective loop ran. */
+  queries: string[]
+  rewrites: number
 }
