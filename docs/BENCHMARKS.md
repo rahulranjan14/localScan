@@ -357,3 +357,68 @@ make differently.
 same models, same host. Run 005's figure was reported earlier as though it meant
 something about page density. It did not. Single-run timings on a shared CPU host
 are not measurements, and none are quoted as such from here on.
+
+---
+
+## Run 007 — a 3B against a 12B for extraction
+
+**2026-10-09** · 3 fixtures · `deepseek-ocr:3b` transcription for both · `always_vlm`
+
+One variable changed: the model bound to the `extract` role.
+
+| | `llama3.2:3b` | `gemma3:12b` | |
+|---|---|---|---|
+| Precision | 91.7% | **97.1%** | +5.4pp |
+| Recall | 100.0% | 100.0% | — |
+| F1 | 95.7% | **98.5%** | +2.9pp |
+| Correct | 33 | 33 | no regression |
+| Wrong | 0 | 0 | — |
+| **Invented** | 3 | **1** | −2 |
+| Classification | 100% | 100% | — |
+| **Seconds per document** | **116s** | 270s | **2.3× slower** |
+
+`sample-invoice.pdf` — the only fixture not written for this project — went from
+95.0% to **100%**.
+
+### What the larger model fixed
+
+Both inventions on that invoice, each a value supplied where the document states
+nothing:
+
+```
+currency      "USD" → "INR" → null        (the glyph does not render; the page says nothing)
+invoiceDate   "2024-03-04" → null         (there is no date anywhere on it)
+```
+
+`llama3.2:3b` was told not to guess, in those words, and guessed anyway.
+`gemma3:12b` was given the same prompt and did not. Prompt wording had already
+been tried twice on exactly these fields (`D-010`); **this was a model problem,
+and only a measurement could have told the difference.**
+
+### The one that survived, and a label that deserves scrutiny
+
+Both models return `lineItems[0].amount: 10000` on a document reading *Quantity:
+2, Unit Price: 5000.00, Total: 10000.00* with no Amount column.
+
+The ground truth says `null`, so it scores as fabricated. But for a single-line
+invoice the line amount genuinely **is** 10000, and a person checking the page
+would agree with the model. Two different models arriving at the same answer
+independently is weak evidence for the model and against the label.
+
+**This is probably a labelling error, not a model error.** It is recorded rather
+than quietly corrected, because a benchmark whose labels are adjusted whenever
+they disagree with the output measures nothing. Changing it is a decision to take
+deliberately, not while writing up a favourable result.
+
+### Choosing between them
+
+2.3× the latency for 5.4pp of precision, and every point of that difference is
+fabrication rather than error. Which is right depends on the use:
+
+- **Review by a person** → `llama3.2:3b`. A fabricated field is caught in the
+  review screen, and 116s beats 270s.
+- **Unattended, or feeding something downstream** → `gemma3:12b`. An invented
+  date that nobody checks is the failure that actually costs money.
+
+That is a decision with numbers behind it rather than a preference, which is the
+entire reason the harness exists.

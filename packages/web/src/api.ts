@@ -102,6 +102,12 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  system: () => request<SystemReport>('/api/system'),
+
+  /** On demand: this one calls a model, so it must never be polled. */
+  probe: (role: string) =>
+    request<ProbeResult>(`/api/system/probe/${role}`, { method: 'POST' }),
+
   fileUrl: (fileId: string) => `/api/files/${fileId}`,
 }
 
@@ -112,4 +118,41 @@ export interface AskAnswer {
   /** Every query tried, original first — shows the self-corrective loop ran. */
   queries: string[]
   rewrites: number
+}
+
+export interface ModelInfo {
+  name: string
+  sizeBytes: number
+  /** Null when it cannot be known — the usual case with a remote inference host. */
+  fits: boolean | null
+}
+
+export interface RoleReport {
+  role: string
+  provider: string | null
+  model: string | null
+  /** ready · not_installed · wont_fit · unreachable · no_api_key · incapable · unconfigured */
+  status: string
+  /** One sentence naming the single fix for this state. */
+  note: string
+  baseUrl?: string
+}
+
+export interface SystemReport {
+  services: {
+    database: { ok: boolean; version?: string; pgvector?: boolean; reason?: string }
+    temporal: { ok: boolean; workers: number | null; taskQueue: string; reason?: string }
+    inference: { ok: boolean; baseUrl: string; models: ModelInfo[]; reason?: string }
+  }
+  roles: RoleReport[]
+  host: { totalMemory: number; availableMemory: number; inferenceMemoryKnown: boolean }
+  textMode: string
+}
+
+export interface ProbeResult {
+  role: string
+  model: string
+  honoursSchema: boolean
+  durationMs: number
+  detail: string
 }
