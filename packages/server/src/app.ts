@@ -23,6 +23,8 @@ import {
 } from './services/runs.js'
 import { askDocument } from './services/qa.js'
 import { handleMcpRequest } from './mcp.js'
+import { probeStructuredOutput, systemReport } from './services/system.js'
+import { ROLES, type Role } from '@ocr/shared'
 import { RoleUnconfiguredError, providerForRole, type ServerConfig } from './config.js'
 
 /**
@@ -71,6 +73,29 @@ export function createApp(config: ServerConfig): Express {
       extractReachable,
       temporal,
     })
+  })
+
+  /** Cheap checks only — this is polled every 30 seconds (FR-9.4). */
+  app.get('/api/system', async (_req, res, next) => {
+    try {
+      res.json(await systemReport(config))
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  /** On demand: this one calls a model, which the poll must never do. */
+  app.post('/api/system/probe/:role', async (req, res, next) => {
+    try {
+      const role = req.params.role as Role
+      if (!(ROLES as readonly string[]).includes(role)) {
+        res.status(400).json({ error: `Unknown role "${role}"` })
+        return
+      }
+      res.json(await probeStructuredOutput(config, role))
+    } catch (error) {
+      next(error)
+    }
   })
 
   app.get('/api/document-types', (_req, res) => {

@@ -477,3 +477,37 @@ So the rule is: an activity gets a heartbeat deadline **only if it can heartbeat
 The cost is that a worker dying during classification or extraction is noticed
 only at start-to-close. That is an honest trade rather than an oversight: an
 activity that cannot report progress cannot be monitored for progress.
+
+---
+
+## D-014 · `wont_fit` is opt-in, because this process cannot determine it
+
+**2026-10-09**
+
+`FR-9.2` lists `wont_fit` among the seven role states. It is now reported **only**
+when `OCR_INFERENCE_MEMORY_BYTES` declares how much memory the inference host has.
+Unset, which is the default, fit is `null` and the state is never emitted.
+
+The requirement assumed models load on the machine running the application. They
+do not here, and three separate things make the figure unknowable:
+
+1. **The models run elsewhere.** Ollama reports no memory figures over its API,
+   so there is nothing to read about the host that matters.
+2. **A loopback URL does not mean local.** `scripts/lan-proxy.mjs` presents a
+   remote host at `127.0.0.1`, which makes the URL useless as evidence — and that
+   forwarder is the recommended setup on macOS.
+3. **`freemem()` understates badly on macOS.** It counts only truly free pages,
+   not reclaimable ones, and reported **0.2 GB free on a healthy 9 GB machine**.
+
+The first implementation used `freemem()` and marked every role `wont_fit`,
+including a 274 MB embedding model, while all five were running perfectly.
+
+A state that cannot be determined correctly is better left unreported than
+guessed. `wont_fit` tells a user to choose a smaller model; emitting it wrongly
+sends them to fix something that is not broken, and costs more than the state was
+ever worth.
+
+The other six states are determinable and are reported: verified by forcing each
+one — `ready`, `not_installed` (names the host and prints the pull command),
+`unconfigured`, `unreachable` (names the URL tried), and `incapable` from the
+capability data of `D-007`.
