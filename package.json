@@ -11,19 +11,21 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev": "concurrently -n server,worker,web -c cyan,yellow,magenta \"npm:dev:server\" \"npm:dev:worker\" \"npm:dev:web\"",
     "dev:server": "npm run dev -w @ocr/server",
+    "dev:worker": "npm run dev -w @ocr/worker",
     "dev:web": "npm run dev -w @ocr/web",
+    "temporal": "temporal server start-dev --db-filename data/temporal/dev.db --ui-port 8233",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc --build --force",
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate": "npm run migrate -w @ocr/server",
+    "eval": "tsx packages/eval/src/cli.ts",
     "check:inference": "tsx scripts/check-inference.mts",
+    "check:vision": "tsx scripts/check-vision.mts",
     "extract": "tsx scripts/extract.mts",
     "spike:rasterise": "tsx --expose-gc scripts/spike-rasterise.mts",
-    "check:vision": "tsx scripts/check-vision.mts",
-    "eval": "tsx packages/eval/src/cli.ts",
     "proxy": "node scripts/lan-proxy.mjs"
   },
   "devDependencies": {

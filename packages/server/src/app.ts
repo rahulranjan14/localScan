@@ -15,7 +15,12 @@ import {
 } from './repositories/documents.js'
 import { findFileById } from './repositories/files.js'
 import { readStoredFile } from './storage/fileStore.js'
-import { DuplicateDocument, describeRun, startExtraction } from './services/runs.js'
+import {
+  DuplicateDocument,
+  describeRun,
+  startExtraction,
+  temporalHealth,
+} from './services/runs.js'
 import { askDocument } from './services/qa.js'
 import { handleMcpRequest } from './mcp.js'
 import { RoleUnconfiguredError, providerForRole, type ServerConfig } from './config.js'
@@ -55,11 +60,16 @@ export function createApp(config: ServerConfig): Express {
         .ping()
         .catch(() => false)
     }
+    const temporal = await temporalHealth()
     res.json({
-      ok: true,
+      // Not ok when nothing can execute a run: an upload would be accepted and
+      // then sit forever, which is worse than refusing it.
+      ok: temporal.reachable && (temporal.workers ?? 0) > 0,
       roles: config.roles,
       ollamaBaseUrl: config.ollamaBaseUrl,
+      textMode: config.textMode,
       extractReachable,
+      temporal,
     })
   })
 

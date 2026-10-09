@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "dev": "tsx src/main.ts"
+    "dev": "tsx watch src/main.ts"
   },
   "dependencies": {
     "@ocr/core": "*",
