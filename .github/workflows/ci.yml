@@ -8,6 +8,23 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    # pgvector is built from source locally (D-011) because Homebrew ships no
+    # bottle for PostgreSQL 14. In CI the official image carries the extension,
+    # so the migrations run as written rather than against a special case.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ocr
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,8 +38,20 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # Unit tests only. Anything requiring a live inference host is excluded by
+      # Unit tests only. Anything needing a live inference host is excluded by
       # the vitest config -- a suite that fails because a particular machine is
       # asleep stops being run, and then stops being written.
       - name: Test
         run: npm test
+
+      # Migrations are run, not just compiled. A migration that parses and then
+      # fails against a real server is the failure this catches, and it is the
+      # one that matters -- the schema is the only part of this repository that
+      # cannot be fixed forward without a second migration.
+      - name: Migrate
+        run: npm run migrate
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/ocr
+
+      - name: Build
+        run: npm run build

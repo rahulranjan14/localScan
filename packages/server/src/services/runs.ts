@@ -16,6 +16,15 @@ import type { DocumentRow } from '../repositories/documents.js'
 
 const TASK_QUEUE = 'ocr'
 
+/**
+ * How recently a poller must have checked in to count as alive.
+ *
+ * A healthy worker long-polls continuously, so its last access is always within
+ * seconds. Sixty seconds is generous enough to never report a busy worker as
+ * dead, and short enough that a killed one stops counting quickly.
+ */
+const POLLER_FRESHNESS_MS = 60_000
+
 let client: Client | null = null
 
 async function temporal(): Promise<Client> {
@@ -121,4 +130,48 @@ export async function describeRun(workflowId: string): Promise<RunStatus> {
   }
 
   return status
+}
+
+/**
+ * Is Temporal reachable, and is anyone listening on the task queue?
+ *
+ * Both halves matter and they fail differently. With no Temporal the upload
+ * fails outright. With Temporal but **no worker**, the upload succeeds, the run
+ * is created, and then nothing happens — forever, with no error anywhere. That
+ * silent version is the one worth detecting, because from the interface it is
+ * indistinguishable from a slow model.
+ */
+export async function temporalHealth(): Promise<{
+  reachable: boolean
+  workers: number | null
+  taskQueue: string
+  reason?: string
+}> {
+  try {
+    const client = await temporal()
+    const description = await client.workflowService.describeTaskQueue({
+      namespace: process.env.TEMPORAL_NAMESPACE ?? 'default',
+      taskQueue: { name: TASK_QUEUE },
+      taskQueueType: 1, // WORKFLOW
+    })
+
+    // Counting registrations is not the same as counting live workers: Temporal
+    // keeps a poller listed for a while after it stops polling, so a killed
+    // worker still reads as present. Filtering on lastAccessTime is what makes
+    // the answer true now rather than true recently.
+    const cutoff = Date.now() - POLLER_FRESHNESS_MS
+    const live = (description.pollers ?? []).filter((poller) => {
+      const seconds = Number(poller.lastAccessTime?.seconds ?? 0)
+      return seconds * 1000 >= cutoff
+    })
+
+    return { reachable: true, workers: live.length, taskQueue: TASK_QUEUE }
+  } catch (error) {
+    return {
+      reachable: false,
+      workers: null,
+      taskQueue: TASK_QUEUE,
+      reason: error instanceof Error ? error.message.slice(0, 200) : String(error),
+    }
+  }
 }

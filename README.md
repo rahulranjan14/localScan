@@ -38,13 +38,23 @@ Upload a PDF — digital or scanned — and get editable, schema-validated JSON.
 - **Side-by-side review.** Document left, fields right, scrolling independently.
   The form is generated from the type's layout, so no document type has a
   hand-written screen.
+- **Durable.** Extraction runs as a Temporal workflow. Upload returns a run id
+  rather than holding a connection for minutes, and killing the worker mid-run
+  loses nothing — it resumes on the next one.
+- **Answerable.** Every document is chunked by page, embedded and searchable. A
+  self-correcting retrieval loop grades its own results and rewrites the query
+  when they are not enough, and answers cite the page they came from.
+- **Usable by agents.** Six MCP tools on the same port as the HTTP API, so an
+  agent can extract, browse and ask questions without a browser.
 - **Measured.** `npm run eval` scores every field in the schema against committed
   ground truth, counting *invented* values separately from wrong ones.
 
 ## Not built yet
 
-Retrieval and question answering · the agent (MCP) surface · durable
-orchestration · hosted model providers · the settings screen.
+Hosted model providers (OpenAI, Google) and the settings screen that would bind
+them — role bindings are set in `.env` for now. Three further document types are
+deferred rather than cancelled: two are enough to prove a type is three files and
+one registry entry.
 
 ## Deliberately not building
 
@@ -75,11 +85,26 @@ ollama pull qwen2.5:3b
 ```bash
 brew services start postgresql@14
 createdb ocr
+psql ocr -c 'CREATE EXTENSION IF NOT EXISTS vector;'
 
 npm install
 cp .env.example .env            # then set OLLAMA_BASE_URL
 npm run migrate
-npm run dev                     # server :3000 · interface :5173
+
+npm run temporal                # in its own terminal — durable run history, UI on :8233
+npm run dev                     # server :3000 · worker · interface :5173
+```
+
+`npm run dev` starts all three processes. Without the worker an upload is
+accepted and then never runs — Temporal holds it and nothing executes it — so the
+server checks at startup and says so plainly rather than leaving you to wonder.
+
+On **macOS with inference on another machine**, run the forwarder first and point
+`OLLAMA_BASE_URL` at loopback. macOS gates local-network access per application,
+and a tool running inside an editor is usually not granted it:
+
+```bash
+npm run proxy -- 192.168.1.50
 ```
 
 Confirm the inference host before trusting it. This probes whether the model
