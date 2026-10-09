@@ -1,32 +1,19 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Context } from '@temporalio/activity'
-import {
-  GENERIC_TYPE,
-  GenericSchema,
-  getDocumentType,
-  type DocumentType,
-  type TextMode,
-} from '@ocr/shared'
+import type { DocumentType, TextMode } from '@ocr/shared'
 import {
   OllamaProvider,
   TIMEOUTS,
-  classifyDocument,
-  extractWithFallback,
+  acquireText as acquireTextStep,
+  classifyText,
+  extractFields,
   indexDocument,
-  joinPages,
-  loadClassifierPrompt,
-  loadGenericPrompt,
-  loadOcrPrompt,
-  loadPrompt,
-  ocrPages,
-  rasterizePdf,
-  readTextLayer,
-  shouldUseTextLayer,
   validatePdfInput,
+  type AcquiredText,
+  type Classification,
   type LlmProvider,
 } from '@ocr/core'
-import type { z } from 'zod'
 
 /**
  * Everything the workflow is forbidden from doing: file reads, model calls,
@@ -64,96 +51,29 @@ export async function validateInput(sha256: string): Promise<void> {
   validatePdfInput(new Uint8Array(await readFile(filePath(sha256))))
 }
 
-export interface AcquiredText {
-  rawText: string
-  usedVision: boolean
-}
-
 export async function acquireText(sha256: string, pages?: number[]): Promise<AcquiredText> {
-  const bytes = new Uint8Array(await readFile(filePath(sha256)))
-  const mode = (process.env.OCR_TEXT_MODE ?? 'auto') as TextMode
-  const textLayer = await readTextLayer(bytes)
-
-  if (shouldUseTextLayer(mode, textLayer)) {
-    const selected = pages ? textLayer.pages.filter((p) => pages.includes(p.page)) : textLayer.pages
-    return { rawText: joinPages(selected), usedVision: false }
-  }
-
-  const ocrProvider = required('ocr')
-  const rendered = await rasterizePdf(bytes, pages ? { pages } : {})
-
-  const ocr = await ocrPages({
-    provider: ocrProvider,
-    promptTemplate: await loadOcrPrompt(ocrProvider.model),
-    pages: rendered,
+  return acquireTextStep({
+    bytes: new Uint8Array(await readFile(filePath(sha256))),
+    mode: (process.env.OCR_TEXT_MODE ?? 'auto') as TextMode,
+    ocr: provider('ocr') ?? undefined,
+    pages,
     // Heartbeating is what makes a long activity resumable. Without it Temporal
-    // cannot distinguish a worker transcribing page 7 of 20 from a worker that
-    // died, and the whole activity restarts from the beginning on recovery.
+    // cannot tell a worker transcribing page 7 of 20 from a worker that died,
+    // and the deadline is what detects the difference (D-013).
     onPage: (page, of) => Context.current().heartbeat({ page, of }),
   })
-
-  const rawText = joinPages(ocr.pages)
-  if (rawText.replace(/--- page \d+ ---/g, '').trim().length < 20) {
-    throw new Error(
-      `The vision model returned almost no text (${rawText.length} chars). ` +
-        `It ran without error and read nothing, which usually means the wrong ` +
-        `prompt convention for this model rather than an unreadable document.`,
-    )
-  }
-  return { rawText, usedVision: true }
 }
 
-export interface Classified {
-  type: DocumentType
-  confidence: number | null
-  reason: string | null
+export async function classify(rawText: string): Promise<Classification> {
+  return classifyText(required('classify'), rawText)
 }
 
-export async function classify(rawText: string): Promise<Classified> {
-  try {
-    const result = await classifyDocument({
-      provider: required('classify'),
-      promptTemplate: await loadClassifierPrompt(),
-      text: rawText,
-    })
-    return { type: result.type, confidence: result.confidence, reason: result.reason }
-  } catch (error) {
-    // A failed classification is not a failed document. Falling back to generic
-    // keeps minutes of transcription that already succeeded.
-    return {
-      type: GENERIC_TYPE,
-      confidence: null,
-      reason: `Classification failed, treated as generic: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    }
-  }
-}
-
-export interface Extracted {
-  ok: boolean
-  data: unknown
-  error: string | null
-}
-
-export async function extract(rawText: string, type: DocumentType): Promise<Extracted> {
-  const definition = getDocumentType(type)
-  const schema: z.ZodType = definition?.schema ?? GenericSchema
-  const promptTemplate = definition
-    ? await loadPrompt(definition.slug)
-    : await loadGenericPrompt()
-
-  const result = await extractWithFallback({
-    provider: required('extract'),
-    fallbackProvider: provider('fallback') ?? undefined,
-    schema,
-    promptTemplate,
-    text: rawText,
-  })
-
-  return result.ok
-    ? { ok: true, data: result.data, error: null }
-    : { ok: false, data: null, error: result.reason }
+export async function extract(rawText: string, type: DocumentType) {
+  return extractFields(
+    { extract: required('extract'), fallback: provider('fallback') ?? undefined },
+    rawText,
+    type,
+  )
 }
 
 export interface PersistInput {

@@ -14,30 +14,8 @@
 import { readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { parseArgs } from 'node:util'
-import {
-  OllamaProvider,
-  TIMEOUTS,
-  classifyDocument,
-  extractWithFallback,
-  joinPages,
-  loadClassifierPrompt,
-  loadGenericPrompt,
-  loadOcrPrompt,
-  loadPrompt,
-  ocrPages,
-  rasterizePdf,
-  readTextLayer,
-  shouldUseTextLayer,
-  validatePdfInput,
-  type LlmProvider,
-} from '@ocr/core'
-import {
-  GENERIC_TYPE,
-  GenericSchema,
-  getDocumentType,
-  type TextMode,
-} from '@ocr/shared'
-import type { z } from 'zod'
+import { OllamaProvider, TIMEOUTS, runPipeline, type LlmProvider } from '@ocr/core'
+import type { TextMode } from '@ocr/shared'
 import { resolveFixtures } from './labels.js'
 import { checkRobustness } from './robustness.js'
 import { loadResults, runId, saveResults, type DocumentResult, type RunConfig } from './results.js'
@@ -141,73 +119,45 @@ async function commandRun(argv: string[]): Promise<void> {
   console.log(dim(`  score them with:  npm run eval -- score ${id}\n`))
 }
 
-/** One fixture through the engine. Mirrors the server's pipeline exactly. */
+/**
+ * One fixture through the engine.
+ *
+ * Calls the same pipeline the application runs rather than reimplementing it.
+ * It was a copy, which is how a benchmark quietly stops measuring the thing it
+ * claims to: the two would drift and the number would keep looking valid.
+ */
 async function runOne(
   path: string,
   config: RunConfig,
   provider: (model: string | null) => LlmProvider | undefined,
 ): Promise<Omit<DocumentResult, 'fixture' | 'durationMs'>> {
-  const bytes = new Uint8Array(await readFile(path))
-  validatePdfInput(bytes)
-
-  const textLayer = await readTextLayer(bytes)
-  let rawText: string
-  let usedVision = false
-
-  if (shouldUseTextLayer(config.textMode as TextMode, textLayer)) {
-    rawText = joinPages(textLayer.pages)
-  } else {
-    usedVision = true
-    const ocrProvider = provider(config.models['ocr'] ?? null)
-    if (!ocrProvider) throw new Error('This document needs the vision path and no ocr model is set')
-
-    const rendered = await rasterizePdf(bytes, config.dpi ? { dpi: config.dpi } : {})
-    const ocr = await ocrPages({
-      provider: ocrProvider,
-      promptTemplate: await loadOcrPrompt(ocrProvider.model),
-      pages: rendered,
-    })
-    rawText = joinPages(ocr.pages)
-    if (rawText.replace(/--- page \d+ ---/g, '').trim().length < 20) {
-      throw new Error(`Transcription produced almost nothing (${rawText.length} chars)`)
-    }
-  }
-
   const classifyProvider = provider(config.models['classify'] ?? null)
-  if (!classifyProvider) throw new Error('No classify model set')
-
-  const classified = await classifyDocument({
-    provider: classifyProvider,
-    promptTemplate: await loadClassifierPrompt(),
-    text: rawText,
-  })
-
-  const definition = getDocumentType(classified.type)
-  const schema: z.ZodType = definition?.schema ?? GenericSchema
-  const promptTemplate = definition
-    ? await loadPrompt(definition.slug)
-    : await loadGenericPrompt()
-
   const extractProvider = provider(config.models['extract'] ?? null)
+  if (!classifyProvider) throw new Error('No classify model set')
   if (!extractProvider) throw new Error('No extract model set')
 
-  const extracted = await extractWithFallback({
-    provider: extractProvider,
-    fallbackProvider: provider(config.models['fallback'] ?? null),
-    schema,
-    promptTemplate,
-    text: rawText,
+  const result = await runPipeline({
+    bytes: new Uint8Array(await readFile(path)),
+    mode: config.textMode as TextMode,
+    pages: undefined,
+    ...(config.dpi ? { rasterize: { dpi: config.dpi } } : {}),
+    providers: {
+      ocr: provider(config.models['ocr'] ?? null),
+      classify: classifyProvider,
+      extract: extractProvider,
+      fallback: provider(config.models['fallback'] ?? null),
+    },
   })
 
   return {
-    type: classified.type,
-    confidence: classified.confidence,
-    classificationReason: classified.reason,
-    status: extracted.ok ? 'completed' : 'needs_review',
-    error: extracted.ok ? null : extracted.reason,
-    rawText,
-    data: extracted.ok ? extracted.data : null,
-    usedVision,
+    type: result.type,
+    confidence: result.confidence,
+    classificationReason: result.reason,
+    status: result.ok ? 'completed' : 'needs_review',
+    error: result.error,
+    rawText: result.rawText,
+    data: result.data,
+    usedVision: result.usedVision,
   }
 }
 
