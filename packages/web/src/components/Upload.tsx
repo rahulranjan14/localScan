@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, type RunStatus } from '../api'
 
 /**
@@ -22,6 +22,21 @@ export function Upload({ onDone }: { onDone: (documentId: string) => void }) {
   const [error, setError] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [pages, setPages] = useState('')
+  const [reprocess, setReprocess] = useState(false)
+  // Shown only when the server opts in, so the control never offers something
+  // the server will silently ignore.
+  const [allowReprocess, setAllowReprocess] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .health()
+      .then((h) => !cancelled && setAllowReprocess(h.allowReprocess === true))
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const input = useRef<HTMLInputElement>(null)
 
   const send = async (file: File) => {
@@ -31,7 +46,7 @@ export function Upload({ onDone }: { onDone: (documentId: string) => void }) {
 
     let timer: ReturnType<typeof setInterval> | undefined
     try {
-      const started = await api.upload(file, pages.trim() || undefined)
+      const started = await api.upload(file, pages.trim() || undefined, reprocess)
 
       // A file already processed comes back as the stored document, with
       // nothing to wait for.
@@ -126,6 +141,22 @@ export function Upload({ onDone }: { onDone: (documentId: string) => void }) {
             onChange={(event) => setPages(event.target.value)}
           />
         </div>
+
+        {allowReprocess && (
+          <div className="field" style={{ marginTop: 10, gridTemplateColumns: '136px 1fr' }}>
+            <label htmlFor="reprocess">Re-process</label>
+            <label htmlFor="reprocess" className="dim" style={{ fontSize: 13, cursor: 'pointer' }}>
+              <input
+                id="reprocess"
+                type="checkbox"
+                checked={reprocess}
+                onChange={(event) => setReprocess(event.target.checked)}
+                style={{ marginRight: 8 }}
+              />
+              Run again even if this document is already stored — for comparing OCR models and prompts.
+            </label>
+          </div>
+        )}
 
         <input
           ref={input}

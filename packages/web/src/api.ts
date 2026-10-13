@@ -44,6 +44,8 @@ export interface HealthResponse {
   ollamaBaseUrl: string
   extractReachable: boolean | null
   roles: Record<string, { provider: string; model: string } | null>
+  /** Server allows re-running a document it has already stored. Development only. */
+  allowReprocess?: boolean
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -79,10 +81,11 @@ export const api = {
    * file already processed answers 200 with the stored document instead, and
    * carries `duplicate` to say so.
    */
-  upload: (file: File, pages?: string) => {
+  upload: (file: File, pages?: string, reprocess?: boolean) => {
     const form = new FormData()
     form.append('file', file)
     if (pages) form.append('pages', pages)
+    if (reprocess) form.append('reprocess', 'true')
     return request<StartedRun>('/api/documents', { method: 'POST', body: form })
   },
 
