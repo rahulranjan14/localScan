@@ -18,6 +18,10 @@
     "./env": {
       "types": "./dist/env.d.ts",
       "default": "./dist/env.js"
+    },
+    "./files": {
+      "types": "./dist/storage/fileStore.d.ts",
+      "default": "./dist/storage/fileStore.js"
     }
   },
   "scripts": {

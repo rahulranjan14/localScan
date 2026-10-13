@@ -43,11 +43,25 @@ export class DuplicateDocument extends Error {
   }
 }
 
+/**
+ * Re-processing the same bytes is refused by default: a re-upload should not
+ * cost a workflow execution when the answer is already stored (FR-1.3).
+ *
+ * While tuning an OCR prompt or comparing vision models that is exactly
+ * backwards — the same document has to run again and again, and finding a new
+ * PDF for each attempt changes the thing being measured. `OCR_ALLOW_REPROCESS=true`
+ * opts a development machine into allowing it. The server flag and the caller
+ * must agree, so a stray parameter in production cannot cause a re-run.
+ */
+const reprocessAllowed = (): boolean => process.env.OCR_ALLOW_REPROCESS === 'true'
+
 export interface StartRunInput {
   bytes: Uint8Array
   filename: string
   mime: string
   pages?: number[] | undefined
+  /** Run again even if these bytes are already stored. Development only. */
+  reprocess?: boolean | undefined
 }
 
 export interface StartedRun {
@@ -62,8 +76,10 @@ export async function startExtraction(input: StartRunInput): Promise<StartedRun>
   // Deduplication stays here rather than in the workflow: answering a re-upload
   // should not cost a workflow execution, and the answer is already in the
   // database (FR-1.3).
+  const reprocess = input.reprocess === true && reprocessAllowed()
+
   const existingFile = await findFileBySha256(sha256)
-  if (existingFile) {
+  if (existingFile && !reprocess) {
     const prior = await findDocumentByFileId(existingFile.id)
     if (prior) throw new DuplicateDocument(prior)
   }
@@ -72,7 +88,11 @@ export async function startExtraction(input: StartRunInput): Promise<StartedRun>
   // hash rather than the bytes travelling through Temporal's payload limit.
   await storeFile(input.bytes)
 
-  const workflowId = `extract-${sha256.slice(0, 16)}`
+  // A forced re-run gets its own workflow id, so its history sits beside the
+  // earlier attempts rather than replacing them. Comparing runs is the point.
+  const workflowId = reprocess
+    ? `extract-${sha256.slice(0, 16)}-${Date.now().toString(36)}`
+    : `extract-${sha256.slice(0, 16)}`
   const handle = await (await temporal()).workflow.start('extractDocumentWorkflow', {
     taskQueue: TASK_QUEUE,
     // Content-addressed, so starting the same document twice reuses the run
@@ -108,6 +128,37 @@ export interface RunStatus {
   error?: string
 }
 
+/**
+ * The message a person should read, dug out of Temporal's wrapping.
+ *
+ * A failed activity arrives three errors deep -- `WorkflowFailedError` wrapping
+ * `ActivityFailure` wrapping the `ApplicationFailure` that carries the actual
+ * reason -- and the outermost message is the string "Workflow execution failed".
+ * Reporting that is reporting the status twice: the interface already says FAILED,
+ * and the one thing it needs is why (`D-016`).
+ *
+ * The deepest message wins, prefixed with the activity that produced it, because
+ * which step failed is most of the diagnosis.
+ */
+function failureMessage(error: unknown): string {
+  const messages: string[] = []
+  let activityType: string | undefined
+  let current: unknown = error
+  const seen = new Set<unknown>()
+
+  while (current instanceof Error && !seen.has(current)) {
+    seen.add(current)
+    if (current.message) messages.push(current.message)
+    const withActivity = current as { activityType?: unknown }
+    if (typeof withActivity.activityType === 'string') activityType = withActivity.activityType
+    current = current.cause
+  }
+
+  const deepest = messages.at(-1)
+  if (!deepest) return 'The run failed and reported no message'
+  return activityType ? `${activityType}: ${deepest}` : deepest
+}
+
 export async function describeRun(workflowId: string): Promise<RunStatus> {
   const handle = (await temporal()).workflow.getHandle(workflowId)
   const description = await handle.describe()
@@ -123,10 +174,7 @@ export async function describeRun(workflowId: string): Promise<RunStatus> {
   if (description.status.name === 'COMPLETED') {
     status.result = await handle.result()
   } else if (description.status.name === 'FAILED') {
-    status.error = await handle.result().then(
-      () => 'unknown',
-      (error: unknown) => (error instanceof Error ? error.message : String(error)),
-    )
+    status.error = await handle.result().then(() => 'unknown', failureMessage)
   }
 
   return status
