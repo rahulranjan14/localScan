@@ -422,3 +422,91 @@ fabrication rather than error. Which is right depends on the use:
 
 That is a decision with numbers behind it rather than a preference, which is the
 entire reason the harness exists.
+
+---
+
+## Run 008 — three vision models against the text layer they were replacing
+
+**2026-10-13** · 1 fixture (`sampleinvoice.pdf`, digital, 1 page) · `always_vlm` forced
+
+Not a corpus score. One page, read four ways, because a document extracted on
+11 October came back with an invoice number and two dates that are not on it.
+
+| | Characters | % of text layer | Seconds | Kept the boxed fields? |
+|---|---|---|---|---|
+| **text layer** (`pdfjs`) | **677** | 100% | 0.0 | **yes — exact** |
+| `deepseek-ocr:3b` @150 dpi | 626 | 92% | 33.9 | no |
+| `deepseek-ocr:3b` @300 dpi | 626 | 92% | 37.3 | no |
+| `qwen2.5vl:3b` @150 dpi | 658 | 97% | **219.2** | partly, scrambled |
+| `granite3.2-vision` @150 dpi | 1473 | **218%** | — | no — degenerated |
+
+### What the page holds and what each model did with it
+
+The invoice carries two boxed tables: a key/value block top right (`Invoice
+Number INV-3337`, `Order Number 12345`, both dates, `Total Due $93.50`) and a
+totals block under the line item (`Sub Total $85.00`, `Tax $8.50`, `Total
+$93.50`).
+
+`deepseek-ocr:3b` **dropped both entirely** while transcribing the line-item
+table correctly as markdown. It can do tables; it did not do these.
+
+`qwen2.5vl:3b` found them and destroyed their structure, reading the box down
+its columns rather than across its rows:
+
+```
+Invoice Number        12345
+Order Number          January 25, 2016
+Invoice Date          January 31, 2016
+Due Date              $93.50
+Total Due
+```
+
+Five labels, four values, `INV-3337` missing altogether. **This is worse than
+dropping the block.** An extract model reading that will confidently pair
+*Invoice Number → 12345*, and nothing downstream can tell that the pairing is an
+artefact of the transcription.
+
+`granite3.2-vision` misread `123 Somewhere Street` as `1233 Snowwhere Street`
+and then repeated it 27 times until it hit the token cap — 218% of the real text.
+A degeneration loop, which is the failure `eval/robustness.ts` was written to
+count.
+
+### DPI is not the lever
+
+150 and 300 dpi produced **byte-identical output** from `deepseek-ocr:3b`. The
+dropped content is not too small to see; the model is not looking at it. Four
+extra seconds bought nothing, and the obvious first guess was wrong.
+
+### What it cost downstream
+
+The stored extraction, from the 626-character transcription:
+
+```
+invoiceNumber  "INV001"      (page says INV-3337 — not in the transcription)
+invoiceDate    "2024-03-04"  (page says January 25, 2016 — not in it either)
+dueDate        "2024-03-04"  (same invented value twice)
+total          85            (page says 93.50; 85 was the only figure present)
+taxTotal       null          (page says 8.50)
+vendor.taxId   "1234 1234"   (that is the bank account number, ACC #)
+```
+
+Thirteen fields correct, four invented, one wrong, two missed. **Every correct
+field was present in the transcription and every incorrect one was absent** —
+which locates the fault in transcription, not extraction, and is only visible
+because the raw text is stored beside the result.
+
+Three re-runs produced 626 characters every time. At temperature 0 this is
+deterministic: retrying the same configuration cannot help.
+
+### What this settles
+
+A vision model is a worse reader of a digital PDF than the parser that was
+already there, on accuracy and by two orders of magnitude on latency. `always_vlm`
+was set to exercise the vision path during development and had quietly become the
+reason a readable invoice produced invented data. See `D-017`.
+
+### What it does not settle
+
+Nothing here says which model is best on a **scan**, where there is no text layer
+to beat. Both failures were layout rather than character recognition, so the next
+variable to move is the OCR prompt, not the model.
