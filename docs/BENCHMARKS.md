@@ -597,3 +597,71 @@ relationship. Position-aware extraction would fix it and is not attempted here.
 Whether the résumé extractions are accurate. Four of five completed and were read
 by eye, but there is still no résumé fixture and no labels, so none of it is
 scored. The harness measures invoices only.
+
+---
+
+## Run 010 — the corpus more than doubles, and the score falls by 25 points
+
+**2026-10-14** · 7 invoice fixtures · `auto` · `deepseek-ocr:3b` / `llama3.2:3b` / `gemma3:12b`
+
+| Fixture | F1 | |
+|---|---|---|
+| `tiny-invoice` | 100.0% | |
+| `sample-invoice` | 97.4% | |
+| `simple-invoice` | 94.7% | |
+| `superstore-22902` | 87.8% | 1 wrong · 3 invented |
+| `sliced-inv-3337` | 60.9% | 4 wrong · 5 invented · 5 missed |
+| `superstore-36258` | 51.4% | 2 wrong · 5 invented · 8 missed |
+| `vendor-laundry-invoice` | **42.1%** | 5 wrong · 9 invented · 3 missed |
+
+```
+precision 69.5%   recall 74.5%   F1 71.9%
+82 correct · 12 wrong · 24 invented · 16 missed
+classification 100%
+```
+
+### The headline is that the old headline was wrong
+
+Runs 005 to 009 reported 94.7% to 98.5% on three fixtures. Four documents later
+the same code on the same models scores **71.9%**. Nothing regressed — the three
+original fixtures score exactly what they scored before. The corpus was the
+measurement.
+
+Two of the three were written for this project, which is the quiet way a corpus
+becomes a mirror: documents that exercise the paths the author had in mind. The
+four added here were not. The laundry invoice prints no subtotal and writes its
+quantities inside the description text; the two SuperStore invoices carry a
+discount, a shipping line and a category subtitle under each item.
+
+**A benchmark that only contains documents the system handles is not a benchmark.**
+This is the first number in this file that would survive a stranger's scrutiny,
+and it is twenty-five points worse than the one it replaces.
+
+### What the new fixtures actually fail at
+
+Not transcription. Every one of these has a clean text layer, and `auto` mode
+read all seven exactly. The failures are structural:
+
+- **`subtotal` copied from the total**, on both SuperStore invoices and in the
+  earlier UI runs. The single most repeated error in the corpus.
+- **Totals rows read as purchases.** `superstore-36258` returned three line items
+  for a one-item invoice, one of them with an amount and no description.
+- **Amounts paired with the wrong descriptions** on the laundry invoice, because
+  the text layer emits the amount column before the descriptions.
+- **Dates left unnormalised** — `January 25, 2016` where the prompt asks for ISO.
+
+### A scoring defect found while reading the results
+
+`sliced-inv-3337` first scored 56.5% with 7 fields wrong. Only two were real.
+`extraFields` is an unordered bag of labelled values and the scorer compared it
+by index, so one extra entry at position 0 cascaded into every field after it.
+
+Keyed by label instead, the same stored run scores **71.9%** rather than 69.3%,
+and `superstore-22902` moves from 78.0% to 87.8%. **No model ran to establish
+that** — scoring never calls one, which is why `run` and `score` are separate.
+
+### Still unmeasured
+
+Résumés. Seven fixtures, all invoices. Labelling a résumé means transcribing
+every bullet exactly, and a wrong label is worse than no label, so the type is
+still read by eye rather than scored.
