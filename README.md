@@ -5,7 +5,7 @@ A local-first document intelligence application. PDF in, validated typed JSON ou
 Every model runs on hardware you control. In the default configuration nothing
 leaves your network.
 
-> **Phase 3 of 7.** This README describes only what is built and verified today.
+> **All seven phases are built.** This README describes only what is built and verified today.
 > Planned work is in [`docs/PRD.md`](docs/PRD.md); decisions, including the ones
 > that turned out to be wrong, are in [`docs/DECISIONS.md`](docs/DECISIONS.md);
 > measured results, including the ones that were worse than hoped, are in
@@ -46,8 +46,33 @@ Upload a PDF — digital or scanned — and get editable, schema-validated JSON.
   when they are not enough, and answers cite the page they came from.
 - **Usable by agents.** Six MCP tools on the same port as the HTTP API, so an
   agent can extract, browse and ask questions without a browser.
+- **Checked for plausibility, not just validity.** A document type can publish a
+  check beside its schema: an invoice whose parts do not add up to its total, or
+  whose line items do not add up to its subtotal, is stored and marked
+  `needs_review` with the arithmetic that disagrees. Nothing is inferred and
+  nothing is repaired — an inconsistency is reported for a person to settle.
+- **Open to sections nobody anticipated.** A résumé's Projects, Publications or
+  Awards are kept under the heading the document printed above them, so a section
+  the schema never named survives extraction instead of being forced into the
+  nearest field that fits badly.
 - **Measured.** `npm run eval` scores every field in the schema against committed
   ground truth, counting *invented* values separately from wrong ones.
+
+## Honest limits
+
+Accuracy is measured on a small corpus and the numbers are in
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), unfavourable ones included. Two
+findings are worth knowing before trusting any output:
+
+- **A 12B model is not reliably steerable at this scale.** Two invoices from the
+  same template, same model, temperature 0, produced opposite structural results
+  — one clean, one turning a category subtitle and a shipping amount into line
+  items (run 009). That is why the plausibility checks exist: detection proved
+  reliable where extraction did not.
+- **A text layer is exact about characters and silent about layout.** One invoice
+  came back with amounts on the wrong rows because `pdfjs` emits the amount
+  column before the descriptions. Every character was right; every relationship
+  was wrong.
 
 ## Not built yet
 
