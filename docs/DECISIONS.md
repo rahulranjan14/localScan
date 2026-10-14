@@ -511,3 +511,180 @@ The other six states are determinable and are reported: verified by forcing each
 one — `ready`, `not_installed` (names the host and prints the pull command),
 `unconfigured`, `unreachable` (names the URL tried), and `incapable` from the
 capability data of `D-007`.
+
+---
+
+## D-015 · The file store is anchored to the repository, not to a working directory
+
+**2026-10-12**
+
+`dataDir()` resolves `OCR_DATA_DIR ?? 'data'` against the **workspace root**,
+found by walking up from the module's own location for the `package.json` that
+declares the workspaces. `storedFilePath(hash)` is now the single definition of
+where a document's bytes live, exported as `@ocr/server/files` and used by the
+worker instead of its own copy.
+
+Before this, both halves resolved the string `data` against `process.cwd()`:
+
+```
+server  resolve('data')        → packages/server/data/files/<sha>   (upload written here)
+worker  join('data', 'files')  → packages/worker/data/files/<sha>   (ENOENT)
+```
+
+Both lines were correct in isolation. Together they were a store with two
+addresses, and the first upload through the full three-process `npm run dev`
+stack failed on `validateInput` in 238 ms. The hash is the only thing that
+crosses the process boundary — `runs.ts` calls `storeFile` and discards the
+absolute path it returns — so nothing could notice the disagreement.
+
+What made it hide for two days: every earlier run was launched from the
+repository root. The eval CLI and `npm run extract` run there, and before
+`c7acd21` the worker was started by hand there too. `files.path` records it —
+every row written before 11 October resolves to the root.
+
+Three symptoms, one cause: uploads failed at the first activity, five stored
+documents would not open in the review screen (`/api/files/:id` reads
+`files.path` and the server resolved those relative values against
+`packages/server`), and `files.path` was wrong for every row written since
+8 October.
+
+`resolveStoredPath()` resolves a legacy relative value against the repository
+root, which is what it meant, so those rows read correctly without rewriting
+data. Verified: all eight stored documents now serve `200`, and a fresh upload
+clears `validateInput`.
+
+The regression test changes the working directory, because that is the only way
+to tell a repository-anchored path from one that merely looks right while the
+suite happens to run from the root.
+
+### Noted, not fixed
+
+`files.path` is derivable from `files.sha256` and could be dropped. It is kept
+for now because removing a column is a migration, and the column is no longer
+wrong — but a store that is content-addressed does not need to record addresses.
+
+---
+
+## D-016 · An error must name the failure it had, not the failure it expected
+
+**2026-10-12**
+
+`ocrPages` keeps per-page failures in `failures` rather than throwing, so one bad
+page costs a page instead of the document. `acquireText` then threw on an empty
+transcription with a message blaming the prompt convention — and discarded
+`failures` entirely.
+
+With no inference host, that produced:
+
+> The vision model returned almost no text (0 characters across 0 page(s)). It
+> ran without error and read nothing, which usually means the wrong prompt
+> convention for this model rather than an unreadable document.
+
+Every clause of which is false. The model never ran, nothing was transcribed
+because nothing could connect, and the reader is sent to `documents/_ocr.md` to
+fix wording when the fix is to start Ollama. It cost real time during the `D-015`
+verification, which is how it was found.
+
+Now, when every page failed, the first failure's reason is reported:
+
+> Vision transcription failed on all 1 page(s). First failure: Could not connect
+> to the inference host at http://127.0.0.1:11434
+
+The prompt-convention message stays for the case it was written for: pages that
+came back successfully and empty, which `deepseek-ocr` really did produce.
+
+This is the same principle as the seven role states of `D-014` — a state that is
+guessed wrongly sends someone to fix something that is not broken — applied one
+layer down, where the guess was in an error message rather than a status field.
+
+### The same mistake one layer up
+
+Fixing the activity's message was not enough, because the interface never saw it.
+`describeRun` took `error.message` from the rejection of `handle.result()`, and
+Temporal wraps a failure three deep:
+
+```
+WorkflowFailedError   "Workflow execution failed"      <- what the screen showed
+  ActivityFailure     "Activity task failed"
+    ApplicationFailure "Vision transcription failed on all 1 page(s). First
+                        failure: Could not connect to the inference host at
+                        http://127.0.0.1:11434"        <- what it needed
+```
+
+So the upload screen said *Workflow execution failed*, which is the status it had
+already printed. `failureMessage()` now walks the cause chain for the deepest
+message and prefixes the activity that produced it, because which step failed is
+most of the diagnosis:
+
+> acquireText: Vision transcription failed on all 1 page(s). First failure: Could
+> not connect to the inference host at http://127.0.0.1:11434
+
+An error that survives three layers of wrapping and arrives as a restatement of
+the status is the same failure as a role state that guesses: both leave the
+person to go and find out what is actually wrong.
+
+### Still unreported
+
+When *some* pages fail and others succeed, the document proceeds with partial
+text and the failures are still dropped. Nothing records that page 7 of 20 is
+missing. That needs a place to put it — probably the classification notes field
+`persist` already writes — and is not addressed here.
+
+---
+
+## D-017 · The text layer is read first again; `always_vlm` was a development setting that outlived its purpose
+
+**2026-10-13**
+
+`OCR_TEXT_MODE` returns to `auto`: a page with a usable text layer is read by
+`pdfjs`, and the vision model is reached only when there is nothing to read.
+
+`always_vlm` was set to exercise the vision path while it was being built, and
+`.env` still carried it. It is the reason an invoice whose text layer contains
+`INV-3337`, both dates and `$93.50` was stored with `INV001`, `2024-03-04` twice,
+and a total of 85.
+
+### What was tried, in order
+
+1. **Re-running the document.** Three runs, 626 characters every time. Temperature
+   is 0, so this was never going to differ — but it ruled out flakiness, and it is
+   the reason `OCR_ALLOW_REPROCESS` exists at all.
+2. **Raising the raster DPI**, on the theory that the dropped text was small.
+   150 and 300 dpi gave **byte-identical** output. Wrong theory, cheaply disproved.
+3. **Changing the vision model.** `qwen2.5vl:3b` recovered the missing block but
+   transcribed it column-wise, separating every label from its value and losing
+   the invoice number. `granite3.2-vision` hallucinated a street name and repeated
+   it 27 times. Neither is usable on this page.
+4. **Reading the text layer**, which was there the whole time: 677 characters,
+   every disputed value present, no model, no latency.
+
+Recorded as run 008 in `BENCHMARKS.md`.
+
+### Why this was not obvious
+
+The pipeline was behaving exactly as configured, and nothing in the result said
+so. The review screen showed a complete invoice with plausible values; only
+comparing the stored `rawText` against the PDF revealed that the extract model had
+never been given the fields it was inventing.
+
+Storing the transcription beside the extraction is what made the diagnosis
+possible — every correct field was in the raw text and every wrong one was absent.
+That correlation is the finding, not the individual errors.
+
+### The general rule
+
+**Reach for the model last.** A parser that reads a digital PDF exactly is better
+than a 3B model that reads it approximately, and the project's own text-layer-first
+default already said so. The setting that overrode it was never revisited after the
+work it was added for was finished.
+
+Development overrides in `.env` need an expiry in the same way a `TODO` does.
+This one cost an afternoon and produced a benchmark run arguing for a position
+the README already held.
+
+### Not settled here
+
+Which vision model is best for a genuine scan. Run 008 only shows that all three
+lose to a text layer, which a scan does not have. Both model failures were layout
+rather than character recognition, so the next variable is the OCR prompt per
+`D-009`, measured on the fixture set rather than on one page.

@@ -89,6 +89,17 @@ export async function acquireText(options: AcquireTextOptions): Promise<Acquired
   const rawText = joinPages(ocr.pages)
   const transcribed = rawText.replace(/--- page \d+ ---/g, '').trim().length
 
+  // Every page failing is a different diagnosis from every page coming back
+  // empty, and `ocr.failures` carries the reason: an unreachable host, a refused
+  // request, a model that is not installed. Reporting that as a prompt problem
+  // sends the reader to the prompt file when the fix is to start the host.
+  if (ocr.pages.length === 0 && ocr.failures.length > 0) {
+    throw new Error(
+      `Vision transcription failed on all ${ocr.failures.length} page(s). ` +
+        `First failure: ${ocr.failures[0]!.reason}`,
+    )
+  }
+
   if (transcribed < MIN_USEFUL_TRANSCRIPTION) {
     // An empty transcription is a failure, not a success with nothing in it. A
     // model can return a page whose text is an empty string -- deepseek-ocr did,

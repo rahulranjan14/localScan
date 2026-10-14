@@ -107,6 +107,21 @@ export function Review({ id, onBack }: { id: string; onBack: () => void }) {
     }
   }
 
+  /**
+   * The form as it stands, including edits not yet saved -- that is the copy the
+   * reviewer is looking at, and the one worth exporting. A blob URL rather than a
+   * server round trip, because the unsaved version exists only in this tab.
+   */
+  const downloadJson = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${doc.type}-${doc.id.slice(0, 8)}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="review">
       <div className="pane-pdf">
@@ -120,6 +135,11 @@ export function Review({ id, onBack }: { id: string; onBack: () => void }) {
           <span className="dim">{doc.type}</span>
           <span className="spacer" />
           {savedAt && <span className="dim" style={{ fontSize: 12 }}>saved {savedAt}</span>}
+          {!readOnly && (
+            <button className="subtle" onClick={downloadJson} title="Download these fields as JSON">
+              Download JSON
+            </button>
+          )}
           {!readOnly && (
             <button className="primary" onClick={save} disabled={saving}>
               {saving ? 'Saving…' : 'Save corrections'}

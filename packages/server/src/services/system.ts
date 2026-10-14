@@ -188,6 +188,19 @@ async function checkInference(
  * and the fixes are completely different: pull a model, start a host, pick a
  * smaller one, assign one at all.
  */
+/**
+ * A loopback base URL usually means `scripts/lan-proxy.mjs` should be carrying the
+ * traffic to another machine, so "start the host" is the wrong instruction: the
+ * host may be running perfectly and the forwarder simply not started. Naming the
+ * likelier fix is the point of these notes (`D-014`, `D-016`).
+ */
+function unreachableNote(baseUrl: string): string {
+  const loopback = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(baseUrl)
+  return loopback
+    ? `Nothing is listening on ${baseUrl}. If the models run on another machine, start the ` +
+      `forwarder from a terminal with Local Network permission: npm run proxy -- <host-ip>`
+    : `The inference host at ${baseUrl} is not answering. Start it, or correct OLLAMA_BASE_URL.`
+}
 function reportRole(
   role: Role,
   config: ServerConfig,
@@ -211,7 +224,7 @@ function reportRole(
     return {
       ...base,
       status: 'unreachable',
-      note: `The inference host is not answering. Start it, or correct OLLAMA_BASE_URL.`,
+      note: unreachableNote(inference.baseUrl),
       baseUrl: inference.baseUrl,
     }
   }

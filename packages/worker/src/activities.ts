@@ -1,5 +1,4 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { Context } from '@temporalio/activity'
 import type { DocumentType, TextMode } from '@ocr/shared'
 import {
@@ -14,6 +13,7 @@ import {
   type Classification,
   type LlmProvider,
 } from '@ocr/core'
+import { storedFilePath } from '@ocr/server/files'
 
 /**
  * Everything the workflow is forbidden from doing: file reads, model calls,
@@ -45,15 +45,14 @@ function required(role: 'ocr' | 'classify' | 'extract'): LlmProvider {
   return p
 }
 
-const filePath = (sha256: string) => join(process.env.OCR_DATA_DIR ?? 'data', 'files', sha256)
 
 export async function validateInput(sha256: string): Promise<void> {
-  validatePdfInput(new Uint8Array(await readFile(filePath(sha256))))
+  validatePdfInput(new Uint8Array(await readFile(storedFilePath(sha256))))
 }
 
 export async function acquireText(sha256: string, pages?: number[]): Promise<AcquiredText> {
   return acquireTextStep({
-    bytes: new Uint8Array(await readFile(filePath(sha256))),
+    bytes: new Uint8Array(await readFile(storedFilePath(sha256))),
     mode: (process.env.OCR_TEXT_MODE ?? 'auto') as TextMode,
     ocr: provider('ocr') ?? undefined,
     pages,
@@ -102,9 +101,9 @@ export async function persist(input: PersistInput): Promise<{
     (await insertFile({
       filename: input.filename,
       mime: input.mime,
-      sizeBytes: (await readFile(filePath(input.sha256))).byteLength,
+      sizeBytes: (await readFile(storedFilePath(input.sha256))).byteLength,
       sha256: input.sha256,
-      path: filePath(input.sha256),
+      path: storedFilePath(input.sha256),
     }))
 
   const notes = [

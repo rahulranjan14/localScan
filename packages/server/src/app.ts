@@ -70,6 +70,7 @@ export function createApp(config: ServerConfig): Express {
       roles: config.roles,
       ollamaBaseUrl: config.ollamaBaseUrl,
       textMode: config.textMode,
+      allowReprocess: process.env.OCR_ALLOW_REPROCESS === 'true',
       extractReachable,
       temporal,
     })
@@ -102,6 +103,10 @@ export function createApp(config: ServerConfig): Express {
     res.json(listDocumentTypes().map(({ slug, label }) => ({ slug, label })))
   })
 
+  /** Multipart fields arrive as strings, so "false" must not read as true. */
+  const parseFlag = (value: unknown): boolean =>
+    value === true || value === 'true' || value === '1' || value === 'on'
+
   app.post(
     '/api/documents',
     upload.single('file'),
@@ -119,6 +124,7 @@ export function createApp(config: ServerConfig): Express {
           filename: req.file.originalname,
           mime: req.file.mimetype,
           pages: pages ?? undefined,
+          reprocess: parseFlag(req.body?.reprocess),
         })
         res.status(202).json(run)
       } catch (error) {
