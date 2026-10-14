@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SectionsSchema } from './sections.js'
 
 /**
  * Second typed document, and the one that proves the extensibility claim.
@@ -69,9 +70,15 @@ export const ResumeSchema = z.object({
   certifications: z.array(z.string().max(300)).max(30).default([]),
   languages: z.array(z.string().max(120)).max(20).default([]),
 
+  /**
+   * Sections this schema does not name — Projects, Publications, Awards —
+   * each keeping the heading the document printed above it. See sections.ts.
+   */
+  sections: SectionsSchema,
+
   /** Never discard something the document stated (FR-4.7). */
   extraFields: z
-    .array(z.object({ key: z.string().max(120), value: z.string().max(2000) }))
+    .array(z.object({ key: z.string().max(120), value: z.string().max(2000).nullable() }))
     .max(25)
     .default([]),
 })

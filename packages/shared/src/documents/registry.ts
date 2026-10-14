@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import { checkInvoice } from './checks.js'
 import { InvoiceSchema } from './invoice.js'
 import { ResumeSchema } from './resume.js'
 
@@ -18,6 +19,12 @@ export interface DocumentTypeDefinition {
   /** Shown in the interface and in the agent-facing type listing. */
   readonly label: string
   readonly schema: z.ZodType
+  /**
+   * Optional: values the document relates that a schema cannot compare, such as
+   * an invoice whose parts do not add up to its total. Returns one message per
+   * inconsistency, for a person to settle. A type without arithmetic omits it.
+   */
+  readonly check?: (data: unknown) => string[]
 }
 
 export const DOCUMENT_TYPES = {
@@ -25,6 +32,7 @@ export const DOCUMENT_TYPES = {
     slug: 'invoice',
     label: 'Invoice',
     schema: InvoiceSchema,
+    check: checkInvoice,
   },
   // The second type exists to prove the first claim in this file: it shares no
   // field with an invoice, and adding it required no engine change.

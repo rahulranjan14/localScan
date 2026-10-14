@@ -103,6 +103,7 @@ export async function extractDocumentWorkflow(input: ExtractInput): Promise<Extr
     usedVision: text.usedVision,
     data: extracted.ok ? extracted.data : null,
     error: extracted.ok ? null : extracted.error,
+    review: extracted.review,
   })
 
   // Indexing failure is not fatal: a document that extracted correctly but could

@@ -3,16 +3,42 @@
     {
       "title": "Candidate",
       "fields": [
-        { "path": "contact.name", "label": "Name", "type": "text" },
-        { "path": "contact.email", "label": "Email", "type": "text" },
-        { "path": "contact.phone", "label": "Phone", "type": "text" },
-        { "path": "contact.location", "label": "Location", "type": "text" },
-        { "path": "headline", "label": "Headline", "type": "text" }
+        {
+          "path": "contact.name",
+          "label": "Name",
+          "type": "text"
+        },
+        {
+          "path": "contact.email",
+          "label": "Email",
+          "type": "text"
+        },
+        {
+          "path": "contact.phone",
+          "label": "Phone",
+          "type": "text"
+        },
+        {
+          "path": "contact.location",
+          "label": "Location",
+          "type": "text"
+        },
+        {
+          "path": "headline",
+          "label": "Headline",
+          "type": "text"
+        }
       ]
     },
     {
       "title": "Summary",
-      "fields": [{ "path": "summary", "label": "Summary", "type": "textarea" }]
+      "fields": [
+        {
+          "path": "summary",
+          "label": "Summary",
+          "type": "textarea"
+        }
+      ]
     }
   ],
   "tables": [
@@ -22,11 +48,33 @@
       "addable": true,
       "items": "objects",
       "columns": [
-        { "path": "employer", "label": "Employer", "type": "text" },
-        { "path": "title", "label": "Title", "type": "text" },
-        { "path": "startDate", "label": "From", "type": "text", "width": "7rem" },
-        { "path": "endDate", "label": "To", "type": "text", "width": "7rem" },
-        { "path": "location", "label": "Location", "type": "text" }
+        {
+          "path": "employer",
+          "label": "Employer",
+          "type": "text"
+        },
+        {
+          "path": "title",
+          "label": "Title",
+          "type": "text"
+        },
+        {
+          "path": "startDate",
+          "label": "From",
+          "type": "text",
+          "width": "7rem"
+        },
+        {
+          "path": "endDate",
+          "label": "To",
+          "type": "text",
+          "width": "7rem"
+        },
+        {
+          "path": "location",
+          "label": "Location",
+          "type": "text"
+        }
       ]
     },
     {
@@ -35,25 +83,121 @@
       "addable": true,
       "items": "objects",
       "columns": [
-        { "path": "institution", "label": "Institution", "type": "text" },
-        { "path": "qualification", "label": "Qualification", "type": "text" },
-        { "path": "field", "label": "Field", "type": "text" },
-        { "path": "endDate", "label": "Year", "type": "text", "width": "6rem" },
-        { "path": "result", "label": "Result", "type": "text", "width": "7rem" }
+        {
+          "path": "institution",
+          "label": "Institution",
+          "type": "text"
+        },
+        {
+          "path": "qualification",
+          "label": "Qualification",
+          "type": "text"
+        },
+        {
+          "path": "field",
+          "label": "Field",
+          "type": "text"
+        },
+        {
+          "path": "endDate",
+          "label": "Year",
+          "type": "text",
+          "width": "6rem"
+        },
+        {
+          "path": "result",
+          "label": "Result",
+          "type": "text",
+          "width": "7rem"
+        }
       ]
     },
-    { "path": "skills", "title": "Skills", "addable": true, "items": "strings" },
-    { "path": "certifications", "title": "Certifications", "addable": true, "items": "strings" },
-    { "path": "languages", "title": "Languages", "addable": true, "items": "strings" },
-    { "path": "contact.links", "title": "Links", "addable": true, "items": "strings" },
+    {
+      "path": "skills",
+      "title": "Skills",
+      "addable": true,
+      "items": "strings"
+    },
+    {
+      "path": "certifications",
+      "title": "Certifications",
+      "addable": true,
+      "items": "strings"
+    },
+    {
+      "path": "languages",
+      "title": "Languages",
+      "addable": true,
+      "items": "strings"
+    },
+    {
+      "path": "contact.links",
+      "title": "Links",
+      "addable": true,
+      "items": "strings"
+    },
+    {
+      "path": "sections",
+      "title": "Other sections (projects, publications, awards)",
+      "addable": true,
+      "items": "objects",
+      "columns": [
+        {
+          "path": "section",
+          "label": "Section",
+          "type": "text",
+          "width": "9rem"
+        },
+        {
+          "path": "heading",
+          "label": "Name",
+          "type": "text"
+        },
+        {
+          "path": "subheading",
+          "label": "Detail",
+          "type": "text"
+        },
+        {
+          "path": "tags",
+          "label": "Listed with",
+          "type": "text"
+        },
+        {
+          "path": "startDate",
+          "label": "From",
+          "type": "text",
+          "width": "7rem"
+        },
+        {
+          "path": "endDate",
+          "label": "To",
+          "type": "text",
+          "width": "7rem"
+        },
+        {
+          "path": "text",
+          "label": "Body",
+          "type": "textarea"
+        }
+      ]
+    },
     {
       "path": "extraFields",
       "title": "Other fields found in the document",
       "addable": true,
       "items": "objects",
       "columns": [
-        { "path": "key", "label": "Field", "type": "text" },
-        { "path": "value", "label": "Value", "type": "text" }
+        {
+          "path": "key",
+          "label": "Field",
+          "type": "text"
+        },
+        {
+          "path": "value",
+          "label": "Value",
+          "type": "text"
+        }
       ]
     }
   ]

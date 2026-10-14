@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { Context } from '@temporalio/activity'
-import type { DocumentType, TextMode } from '@ocr/shared'
+import { getDocumentType, type DocumentType, type TextMode } from '@ocr/shared'
 import {
   OllamaProvider,
   TIMEOUTS,
@@ -68,11 +68,16 @@ export async function classify(rawText: string): Promise<Classification> {
 }
 
 export async function extract(rawText: string, type: DocumentType) {
-  return extractFields(
+  const outcome = await extractFields(
     { extract: required('extract'), fallback: provider('fallback') ?? undefined },
     rawText,
     type,
   )
+
+  // Validity and plausibility are different questions, and only the first one is
+  // the schema's. A document that validates can still disagree with itself.
+  const review = outcome.ok ? (getDocumentType(type)?.check?.(outcome.data) ?? []) : []
+  return { ...outcome, review }
 }
 
 export interface PersistInput {
@@ -86,6 +91,8 @@ export interface PersistInput {
   usedVision: boolean
   data: unknown
   error: string | null
+  /** Inconsistencies found in data that validated. Empty in the normal case. */
+  review?: string[]
 }
 
 export async function persist(input: PersistInput): Promise<{
@@ -106,9 +113,12 @@ export async function persist(input: PersistInput): Promise<{
       path: storedFilePath(input.sha256),
     }))
 
+  const review = input.review ?? []
+
   const notes = [
     input.reason,
     input.usedVision ? 'Text came from vision OCR, not a text layer.' : null,
+    ...review,
   ].filter(Boolean)
 
   const document = await insertDocument({
@@ -119,7 +129,9 @@ export async function persist(input: PersistInput): Promise<{
     structuredData: input.data,
     confidence: input.confidence,
     classificationReason: notes.length > 0 ? notes.join(' ') : null,
-    status: input.error === null ? 'completed' : 'needs_review',
+    // Flagged data is still stored, unlike data that failed validation: it is
+    // a reading a person should check, not a reading to throw away (FR-5.x).
+    status: input.error === null && review.length === 0 ? 'completed' : 'needs_review',
     error: input.error,
   })
 

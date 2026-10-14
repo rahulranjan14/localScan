@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasUsableTextLayer, shouldUseTextLayer, type TextLayerResult } from './textLayer.js'
+import { hasUsableTextLayer, shouldUseTextLayer, type TextLayerResult, stripUnstorable } from './textLayer.js'
 
 const layer = (texts: string[]): TextLayerResult => {
   const pages = texts.map((text, i) => ({ page: i + 1, text }))
@@ -62,5 +62,19 @@ describe('shouldUseTextLayer', () => {
     // Otherwise the pipeline would extract from an empty string and report
     // success on a document it never read.
     expect(shouldUseTextLayer('prefer_text', layer(['', '']))).toBe(false)
+  })
+})
+
+describe('stripUnstorable', () => {
+  it('removes a NUL byte that PostgreSQL would reject', () => {
+    expect(stripUnstorable('8.2 k \u0000 on GitHub')).toBe('8.2 k  on GitHub')
+  })
+
+  it('keeps tabs and newlines, which are content', () => {
+    expect(stripUnstorable('a\tb\nc')).toBe('a\tb\nc')
+  })
+
+  it('leaves ordinary text alone', () => {
+    expect(stripUnstorable('Résumé — Jake Ryan')).toBe('Résumé — Jake Ryan')
   })
 })

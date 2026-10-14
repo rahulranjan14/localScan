@@ -688,3 +688,51 @@ Which vision model is best for a genuine scan. Run 008 only shows that all three
 lose to a text layer, which a scan does not have. Both model failures were layout
 rather than character recognition, so the next variable is the OCR prompt per
 `D-009`, measured on the fixture set rather than on one page.
+
+---
+
+## D-018 · Plausibility is checked separately from validity, and that is where the effort goes
+
+**2026-10-14**
+
+A document type may publish a `check` beside its schema. `checkInvoice` compares
+values the document itself relates — the parts against the total, the line items
+against the subtotal or against the total when no subtotal is printed — and flags
+a row carrying an amount with no description. Findings mark the document
+`needs_review` **with its data kept**, and the review screen distinguishes that
+from a validation failure, where there is nothing trustworthy to show.
+
+Nothing is inferred and nothing is repaired. An inconsistency is reported for a
+person to settle, because repairing it would make a guess indistinguishable from
+a reading — the same argument as `D-010`.
+
+### Why this rather than more prompt work
+
+Run 009 put two SuperStore invoices through the same template, model and prompt
+at temperature 0. One filled `discount` and `shipping` correctly and returned a
+single clean line item; the other left both null and turned a category subtitle
+and a shipping amount into line items. Repeating the second alone, uncontended,
+reproduced it exactly.
+
+Two documents differing only in their numbers produced opposite structural
+behaviour. A prompt change cannot be verified against that, and the day's two
+attempts agree: the broad `extraFields` rewrite produced the literal string
+`"null"` in three fields and was reverted, while adding `discount` and `shipping`
+as schema fields helped one invoice and did nothing for the other.
+
+Of five invoices, the check flagged all three wrong ones with true reasons and
+left both correct ones alone. **Detection is reliable where extraction is not**,
+and it stays reliable whichever model is bound — which prompt wording does not.
+
+### What a check may not do
+
+Infer, repair, or reject. It may only compare what the document states and say
+what disagrees. A check that filled in `subtotal` from the line items would be
+guessing with the authority of a verified value, which is the failure this whole
+project is arranged to avoid.
+
+### Noted
+
+`subtotal` is the one field both invoices got wrong, in the same way — copying
+the total. That is a pattern worth a prompt line eventually, and it is the only
+prompt change this run would justify.
