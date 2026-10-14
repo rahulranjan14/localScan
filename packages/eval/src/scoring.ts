@@ -56,6 +56,23 @@ export interface DocumentScore {
  * different order than the document has made an error worth seeing, and
  * best-effort matching would hide it behind a good score.
  */
+/**
+ * Arrays whose entries are labelled rather than ordered.
+ *
+ * `extraFields` is a bag: the document states `Order Number`, `ACC #` and
+ * `BSB #`, and nothing about the page makes one of them first. Indexing it like
+ * `lineItems` scored a correct value as wrong purely for arriving in a different
+ * position, and one extra entry at the front cascaded into every later field —
+ * `sliced-inv-3337` lost seven fields that way, of which two were real.
+ *
+ * So these are keyed by their own `key` instead of by position. Line items stay
+ * positional, for the reason given above: their order is the document's.
+ */
+const KEYED_ARRAYS = new Map<string, string>([
+  ['extraFields', 'key'],
+  ['sections', 'section'],
+])
+
 export function flatten(value: unknown, prefix = ''): Map<string, unknown> {
   const out = new Map<string, unknown>()
 
@@ -67,6 +84,17 @@ export function flatten(value: unknown, prefix = ''): Map<string, unknown> {
     if (Array.isArray(node)) {
       if (node.length === 0) {
         out.set(path, null)
+        return
+      }
+      const keyField = KEYED_ARRAYS.get(path.split('.').pop() ?? '')
+      if (keyField !== undefined) {
+        for (const item of node) {
+          const label = (item as Record<string, unknown> | null)?.[keyField]
+          // An entry with no label cannot be matched to one; fall back to its
+          // position so it is still counted rather than silently dropped.
+          const slot = typeof label === 'string' ? label.trim().replace(/\s+/g, ' ') : `?${node.indexOf(item)}`
+          walk(item, `${path}{${slot}}`)
+        }
         return
       }
       node.forEach((item, index) => walk(item, `${path}[${index}]`))
