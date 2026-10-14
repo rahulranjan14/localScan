@@ -56,6 +56,17 @@ export const InvoiceSchema = z.object({
 
   subtotal: nullableNumber,
   taxTotal: nullableNumber,
+  /**
+   * Discount and shipping are fields rather than `extraFields` entries because
+   * a printed total does not reconcile without them.
+   *
+   * They were missing, and a SuperStore invoice showed what that costs: the
+   * model put the two amounts in `lineItems` as rows with no description, and
+   * `subtotal` came back as the total. A value the schema cannot hold does not
+   * stay out of the output — it lands somewhere worse.
+   */
+  discount: nullableNumber,
+  shipping: nullableNumber,
   total: nullableNumber,
 
   notes: nullableString,
@@ -74,7 +85,10 @@ export const InvoiceSchema = z.object({
    * array with a maximum puts the stop condition where the decoder can see it.
    */
   extraFields: z
-    .array(z.object({ key: z.string().max(120), value: z.string().max(2000) }))
+    // Nullable, because a required string plus an instruction to answer null
+    // produces the word "null" as text, which validates and is wrong. Observed
+    // on three fields of one invoice.
+    .array(z.object({ key: z.string().max(120), value: z.string().max(2000).nullable() }))
     .max(25)
     .default([]),
 })

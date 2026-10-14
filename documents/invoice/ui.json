@@ -3,44 +3,132 @@
     {
       "title": "Invoice",
       "fields": [
-        { "path": "invoiceNumber", "label": "Invoice number", "type": "text" },
-        { "path": "invoiceDate", "label": "Invoice date", "type": "text" },
-        { "path": "dueDate", "label": "Due date", "type": "text" },
-        { "path": "poNumber", "label": "PO number", "type": "text" },
-        { "path": "currency", "label": "Currency", "type": "text" }
+        {
+          "path": "invoiceNumber",
+          "label": "Invoice number",
+          "type": "text"
+        },
+        {
+          "path": "invoiceDate",
+          "label": "Invoice date",
+          "type": "text"
+        },
+        {
+          "path": "dueDate",
+          "label": "Due date",
+          "type": "text"
+        },
+        {
+          "path": "poNumber",
+          "label": "PO number",
+          "type": "text"
+        },
+        {
+          "path": "currency",
+          "label": "Currency",
+          "type": "text"
+        }
       ]
     },
     {
       "title": "Vendor",
       "fields": [
-        { "path": "vendor.name", "label": "Name", "type": "text" },
-        { "path": "vendor.taxId", "label": "Tax ID", "type": "text" },
-        { "path": "vendor.address", "label": "Address", "type": "textarea" },
-        { "path": "vendor.email", "label": "Email", "type": "text" },
-        { "path": "vendor.phone", "label": "Phone", "type": "text" }
+        {
+          "path": "vendor.name",
+          "label": "Name",
+          "type": "text"
+        },
+        {
+          "path": "vendor.taxId",
+          "label": "Tax ID",
+          "type": "text"
+        },
+        {
+          "path": "vendor.address",
+          "label": "Address",
+          "type": "textarea"
+        },
+        {
+          "path": "vendor.email",
+          "label": "Email",
+          "type": "text"
+        },
+        {
+          "path": "vendor.phone",
+          "label": "Phone",
+          "type": "text"
+        }
       ]
     },
     {
       "title": "Buyer",
       "fields": [
-        { "path": "buyer.name", "label": "Name", "type": "text" },
-        { "path": "buyer.taxId", "label": "Tax ID", "type": "text" },
-        { "path": "buyer.address", "label": "Address", "type": "textarea" },
-        { "path": "buyer.email", "label": "Email", "type": "text" },
-        { "path": "buyer.phone", "label": "Phone", "type": "text" }
+        {
+          "path": "buyer.name",
+          "label": "Name",
+          "type": "text"
+        },
+        {
+          "path": "buyer.taxId",
+          "label": "Tax ID",
+          "type": "text"
+        },
+        {
+          "path": "buyer.address",
+          "label": "Address",
+          "type": "textarea"
+        },
+        {
+          "path": "buyer.email",
+          "label": "Email",
+          "type": "text"
+        },
+        {
+          "path": "buyer.phone",
+          "label": "Phone",
+          "type": "text"
+        }
       ]
     },
     {
       "title": "Totals",
       "fields": [
-        { "path": "subtotal", "label": "Subtotal", "type": "number" },
-        { "path": "taxTotal", "label": "Tax", "type": "number" },
-        { "path": "total", "label": "Total", "type": "number" }
+        {
+          "path": "subtotal",
+          "label": "Subtotal",
+          "type": "number"
+        },
+        {
+          "path": "taxTotal",
+          "label": "Tax",
+          "type": "number"
+        },
+        {
+          "path": "discount",
+          "label": "Discount",
+          "type": "number"
+        },
+        {
+          "path": "shipping",
+          "label": "Shipping",
+          "type": "number"
+        },
+        {
+          "path": "total",
+          "label": "Total",
+          "type": "number"
+        }
       ]
     },
     {
       "title": "Notes",
-      "fields": [{ "path": "notes", "label": "Notes", "type": "textarea" }]
+      "fields": [
+        {
+          "path": "notes",
+          "label": "Notes",
+          "type": "textarea"
+        }
+      ]
     }
   ],
   "tables": [
@@ -49,11 +137,35 @@
       "title": "Line items",
       "addable": true,
       "columns": [
-        { "path": "description", "label": "Description", "type": "text" },
-        { "path": "quantity", "label": "Qty", "type": "number", "width": "5rem" },
-        { "path": "unitPrice", "label": "Unit price", "type": "number", "width": "8rem" },
-        { "path": "amount", "label": "Amount", "type": "number", "width": "8rem" },
-        { "path": "taxRate", "label": "Tax %", "type": "number", "width": "5rem" }
+        {
+          "path": "description",
+          "label": "Description",
+          "type": "text"
+        },
+        {
+          "path": "quantity",
+          "label": "Qty",
+          "type": "number",
+          "width": "5rem"
+        },
+        {
+          "path": "unitPrice",
+          "label": "Unit price",
+          "type": "number",
+          "width": "8rem"
+        },
+        {
+          "path": "amount",
+          "label": "Amount",
+          "type": "number",
+          "width": "8rem"
+        },
+        {
+          "path": "taxRate",
+          "label": "Tax %",
+          "type": "number",
+          "width": "5rem"
+        }
       ]
     },
     {
@@ -61,8 +173,16 @@
       "title": "Other fields found in the document",
       "addable": true,
       "columns": [
-        { "path": "key", "label": "Field", "type": "text" },
-        { "path": "value", "label": "Value", "type": "text" }
+        {
+          "path": "key",
+          "label": "Field",
+          "type": "text"
+        },
+        {
+          "path": "value",
+          "label": "Value",
+          "type": "text"
+        }
       ]
     }
   ]

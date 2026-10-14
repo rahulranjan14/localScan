@@ -151,11 +151,24 @@ export function Review({ id, onBack }: { id: string; onBack: () => void }) {
           <Classification confidence={doc.confidence} reason={doc.classificationReason} type={doc.type} />
         )}
 
-        {doc.status === 'needs_review' && (
+        {doc.status === 'needs_review' && doc.error && (
           <div className="notice">
             <strong>Extraction did not validate.</strong> No structured data was stored, so nothing
             below is a partial result presented as fact.
-            {doc.error && <div className="mono" style={{ marginTop: 6 }}>{doc.error}</div>}
+            <div className="mono" style={{ marginTop: 6 }}>{doc.error}</div>
+          </div>
+        )}
+
+        {/* Validated, and still disagreeing with itself. The fields below are real
+            readings, so they are shown and are editable -- unlike a validation
+            failure, where there is nothing trustworthy to show. */}
+        {doc.status === 'needs_review' && !doc.error && (
+          <div className="notice">
+            <strong>These fields need checking.</strong> The document validated but does not add up,
+            so the values below may be read from the wrong place.
+            {doc.classificationReason && (
+              <div className="mono" style={{ marginTop: 6 }}>{doc.classificationReason}</div>
+            )}
           </div>
         )}
 
