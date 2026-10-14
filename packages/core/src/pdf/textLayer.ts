@@ -104,9 +104,28 @@ export function hasUsableTextLayer(result: TextLayerResult): boolean {
   return result.pagesWithText / result.totalPages >= 0.5
 }
 
+/**
+ * Strips characters PostgreSQL will not store in a `text` column.
+ *
+ * A résumé whose text layer contained two NUL bytes — a star glyph mapped to
+ * U+0000 in "8.2k ★ on GitHub" — failed on `persist` with *invalid byte
+ * sequence for encoding "UTF8": 0x00*, after thirty-six minutes of model work
+ * and five identical retries. The document was unprocessable for a reason that
+ * had nothing to do with reading it.
+ *
+ * Done here rather than at the database boundary: text that cannot be stored
+ * should not reach extraction either, and this is where text enters the system.
+ * Tabs and newlines are kept; everything else below U+0020 is a glyph artefact
+ * rather than content.
+ */
+export function stripUnstorable(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+}
+
 /** Joins pages with markers, so a later citation can name the page (FR-6.1). */
 export function joinPages(pages: PageText[]): string {
-  return pages.map((p) => `--- page ${p.page} ---\n${p.text}`).join('\n\n')
+  return stripUnstorable(pages.map((p) => `--- page ${p.page} ---\n${p.text}`).join('\n\n'))
 }
 
 /**

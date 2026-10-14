@@ -24,7 +24,22 @@ const here = dirname(self)
 // filesystem probe or a separate dev entry point.
 const workflowsFile = self.endsWith('.ts') ? 'workflows.ts' : 'workflows.js'
 
+/**
+ * One activity at a time by default, because there is one inference host.
+ *
+ * Temporal's default lets a worker run many activities at once, which for this
+ * pipeline means many simultaneous requests to the same Ollama instance. Ten
+ * documents submitted together took 5 to 98 minutes each instead of about three,
+ * and two of them lost their extraction entirely to connection failures while
+ * the host was up and serving. Nothing was gained for the cost: the models are
+ * the bottleneck and they do not parallelise on one box.
+ *
+ * Raise it only when there is more than one host to spread work across.
+ */
+const concurrency = Number(process.env.OCR_WORKER_CONCURRENCY ?? 1)
+
 const worker = await Worker.create({
+  maxConcurrentActivityTaskExecutions: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
   // Workflows run in an isolated sandbox with no access to the host's modules,
   // which is what enforces their determinism. They are referenced by path rather
   // than imported, so nothing from this file leaks into that sandbox.
@@ -34,7 +49,7 @@ const worker = await Worker.create({
   namespace: 'default',
 })
 
-console.log('  worker     task queue "ocr" · namespace default')
+console.log(`  worker     task queue "ocr" · namespace default · ${concurrency} activity at a time`)
 console.log('  temporal   http://127.0.0.1:8233')
 console.log('  kill this process mid-run; the run resumes when it restarts\n')
 
