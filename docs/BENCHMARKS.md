@@ -510,3 +510,90 @@ reason a readable invoice produced invented data. See `D-017`.
 Nothing here says which model is best on a **scan**, where there is no text layer
 to beat. Both failures were layout rather than character recognition, so the next
 variable to move is the OCR prompt, not the model.
+
+---
+
+## Run 009 — ten documents through the application, not the harness
+
+**2026-10-14** · 5 invoices · 5 résumés · `auto` · `deepseek-ocr:3b` / `llama3.2:3b` / `gemma3:12b`
+
+Submitted through the upload API rather than the eval CLI, which is why this run
+found things the harness cannot: the harness calls the engine directly, so it
+exercises no queue, no worker and no database write.
+
+| | Outcome |
+|---|---|
+| Completed with data | 7 of 10 |
+| Lost extraction to connection failures | 2 |
+| Failed outright on a database write | 1 |
+| Classification | 10 of 10 correct |
+
+### Two defects, both invisible to the harness
+
+**A NUL byte made a document unstorable.** `resume.pdf` failed on `persist`:
+`invalid byte sequence for encoding "UTF8": 0x00`, retried five times, after
+thirty-six minutes of model work. Its text layer holds two NUL bytes where a star
+glyph maps to U+0000 in `8.2k ★ on GitHub`. Fixed at the point text enters the
+system; the document now completes at 3562 characters where the raw text had 3564.
+
+**Ten uploads meant ten simultaneous requests to one inference host.** The worker
+had no concurrency limit.
+
+```
+alone                    ~210 s per document
+ten at once      298 s · 432 s · 620 s · 855 s · 1518 s · 2191 s · 2192 s · 2912 s · 5906 s
+```
+
+Two of the ten — `invoice_Vivek` and `jakeresume` — exhausted all three attempts
+with *Could not connect to the inference host* **while the box was up and
+serving**. Both complete on a retry with the cap in place.
+
+### The result that matters more than either
+
+Two SuperStore invoices, same template, same model, same prompt, temperature 0:
+
+| | Vivek · $9,999.94 | Aaron · $48.71 |
+|---|---|---|
+| `discount` / `shipping` | **999.99 / 118.26** | `null` / `null` |
+| line items | **1, correct** | 3 — category row and an undescribed row |
+| category subtitle | ignored correctly | became a line item |
+| `extraFields` | Ship To, Ship Mode, Order ID | none |
+| `subtotal` | wrong — copied the total | wrong — copied the total |
+| `invoiceDate` | `2012-04-07` | `Mar 06 2012` |
+
+Aaron's run was repeated alone, uncontended, and came back identical — so this is
+not contention. Two documents that differ only in their numbers produce opposite
+structural behaviour, and even the date format differs.
+
+**Extraction quality at this scale is not reliably steerable by schema or prompt.
+Detection is.** Of the five invoices, the three wrong ones were flagged
+`needs_review` with true, specific reasons and the two correct ones were not:
+
+```
+The totals do not reconcile: subtotal 9118.21 + shipping 118.26 − discount 999.99
+comes to 8236.48, but the total reads 9118.21.
+The line items add up to 9999.94, but the subtotal reads 9118.21.
+```
+
+Two independent rules, both true, both pointing at the single wrong field. That
+asymmetry holds whichever model is bound, which is why `D-018` puts the effort
+there rather than into prompt wording.
+
+### A third finding, unfixed
+
+`Sample Vendor Invoice` has no subtotal and three line items — 462.00, 35.50,
+70.00 against a total of 567.50. The amounts came back on the wrong rows: Linens
+got 70.00, Aprons got `null`. The text layer emits the amount column before the
+descriptions, so reading order and visual order disagree, and the model paired
+them in the order it received them.
+
+A text layer is exact about characters and says nothing about layout. The project
+already knew a text layer can be wrong (`AIR_I NDIA` in the README); this is the
+sharper version — it can be right about every character and wrong about every
+relationship. Position-aware extraction would fix it and is not attempted here.
+
+### Not settled
+
+Whether the résumé extractions are accurate. Four of five completed and were read
+by eye, but there is still no résumé fixture and no labels, so none of it is
+scored. The harness measures invoices only.
