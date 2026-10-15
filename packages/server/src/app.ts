@@ -286,6 +286,18 @@ function errorHandler(error: unknown, _req: Request, res: Response, _next: NextF
     res.status(502).json({ error: error.message, baseUrl: error.baseUrl })
     return
   }
+  // Temporal is the run history, and its history is not kept forever: a dev
+  // server restarted or past its retention no longer knows a workflow it once
+  // ran. The document survives in Postgres, so this is "the run has aged out",
+  // not "something broke" -- and 500 with "Internal error" said the second.
+  if (error instanceof Error && error.name === 'WorkflowNotFoundError') {
+    res.status(404).json({
+      error:
+        'No such run. Temporal keeps run history for a limited time, so a run ' +
+        'from an earlier session may be gone while its document remains.',
+    })
+    return
+  }
   if (error instanceof Error && 'code' in error && error.code === 'LIMIT_FILE_SIZE') {
     res.status(413).json({ error: 'File is larger than the upload limit.' })
     return
