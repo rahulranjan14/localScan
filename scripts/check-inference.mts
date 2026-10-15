@@ -2,7 +2,7 @@
  * Verifies that the configured inference host can actually do what the pipeline
  * needs, before the application assumes it.
  *
- *   npm run check:inference -- --base-url http://192.168.29.128:11434 --model qwen2.5:3b
+ *   npm run check:inference -- --base-url "$OLLAMA_BASE_URL" --model qwen2.5:3b
  *
  * Reachability and model presence are read from the host. Structured output is
  * *probed*, because nothing the host reports tells you whether a model will

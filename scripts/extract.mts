@@ -1,7 +1,7 @@
 /**
  * Runs the engine over one PDF and prints the result. No server, no database.
  *
- *   npm run extract -- <file.pdf> --base-url http://192.168.29.128:11434
+ *   npm run extract -- <file.pdf> --base-url "$OLLAMA_BASE_URL"
  *
  * This exists because the engine is pure: given bytes and a model binding it
  * returns a result, with no HTTP layer and no storage involved. Being able to

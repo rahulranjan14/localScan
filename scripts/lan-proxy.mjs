@@ -1,7 +1,7 @@
 /**
  * Forwards 127.0.0.1:<port> to an inference host on the LAN.
  *
- *   node scripts/lan-proxy.mjs 192.168.29.128
+ *   node scripts/lan-proxy.mjs <host-ip>     # or set OCR_INFERENCE_HOST in .env
  *
  * This exists for a macOS problem, not an architectural one. macOS gates
  * **Local Network** access per application: a process can reach the internet and
@@ -21,13 +21,38 @@
  * problem is how this kind of workaround fails.
  */
 import net from 'node:net'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const target = process.argv[2]
+/**
+ * Reads one key out of .env without a dependency.
+ *
+ * This file is kept dependency-free on purpose -- needing to install something
+ * to fix a networking problem is how a workaround like this fails -- so it does
+ * twelve lines of parsing rather than importing dotenv. The address of the
+ * inference host is configuration, and configuration belongs in .env rather
+ * than in a usage example in a public repository.
+ */
+const fromEnvFile = (key) => {
+  try {
+    const envPath = join(dirname(dirname(fileURLToPath(import.meta.url))), '.env')
+    for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+      const match = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/)
+      if (match && match[1] === key) return match[2].replace(/^['"]|['"]$/g, '').trim()
+    }
+  } catch {
+    // No .env, or unreadable: the argument is the other way in.
+  }
+  return undefined
+}
+
+const target = process.argv[2] ?? process.env.OCR_INFERENCE_HOST ?? fromEnvFile('OCR_INFERENCE_HOST')
 const port = Number(process.argv[3] ?? 11434)
 
 if (!target) {
   console.error('usage: node scripts/lan-proxy.mjs <host-ip> [port]')
-  console.error('   eg: node scripts/lan-proxy.mjs 192.168.29.128')
+  console.error('   or: set OCR_INFERENCE_HOST in .env and run it with no arguments')
   process.exit(2)
 }
 
