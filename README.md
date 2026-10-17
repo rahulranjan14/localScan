@@ -187,6 +187,22 @@ packages/eval/           the harness — fixtures, labels and results, all commi
 scripts/                 check-inference, check-vision, extract, spike-rasterise
 ```
 
+### Where each idea lives
+
+One concept, one place. Each file carries the reasoning for its own decisions,
+including the ones that turned out to be wrong.
+
+| | |
+|---|---|
+| **Durability** (Temporal) | [`packages/worker/src/workflows.ts`](packages/worker/src/workflows.ts) — the pipeline as a fixed sequence, with per-step timeouts and retry counts and why each differs. [`activities.ts`](packages/worker/src/activities.ts) holds the six steps; [`main.ts`](packages/worker/src/main.ts) the worker itself; [`server/src/services/runs.ts`](packages/server/src/services/runs.ts) the client that starts runs. |
+| **Self-correcting retrieval** (LangGraph) | [`packages/core/src/qa/graph.ts`](packages/core/src/qa/graph.ts) — retrieve → grade → rewrite → generate, in one file. The only place a model decides control flow. |
+| **RAG** | [`core/src/rag/chunk.ts`](packages/core/src/rag/chunk.ts) page-aware chunking, [`rag/index.ts`](packages/core/src/rag/index.ts) embedding, [`server/src/repositories/chunks.ts`](packages/server/src/repositories/chunks.ts) exact cosine search. |
+| **Agent surface** (MCP) | [`server/src/mcp.ts`](packages/server/src/mcp.ts) — six tools on the same port as the REST API. |
+| **Extraction** | [`core/src/pipeline/`](packages/core/src/pipeline/) — `run.ts` text acquisition, `classify.ts`, `extract.ts`, `repair.ts`. |
+| **Safety** | [`core/src/guards/`](packages/core/src/guards/) — input validation, output capping, prompt-injection scanning, each with tests. |
+| **Plausibility** | [`shared/src/documents/checks.ts`](packages/shared/src/documents/checks.ts) — what a schema cannot ask: whether a reading could be true. |
+| **Adding a document type** | [`documents/<type>/`](documents/) — schema in [`shared/src/documents/`](packages/shared/src/documents/), prompt and layout as files. |
+
 **The structural rule:** `packages/core` imports nothing from Express, Postgres
 or any orchestrator. Given bytes and a model binding it returns a result. That is
 what lets the interface, the agent surface and the evaluation harness share one
