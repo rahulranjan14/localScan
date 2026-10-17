@@ -100,7 +100,7 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);
     <span class="chip up">postgres 14.11 up</span>
     <span class="chip up">temporal up</span>
     <span class="chip up">worker polling</span>
-    <span class="chip down">inference unreachable</span>
+    <span class="chip up">inference ready</span>
   </span>
 </div></header>
 
@@ -109,7 +109,7 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);
 <h1>localScan Runtime Map</h1>
 <p class="standfirst">Six packages, two of your own ports, one durable pipeline, and a hash
 that two processes resolve to different directories.</p>
-<p class="prov">Drawn from the code and from the processes actually running on this machine —
+<p class="prov">The same architecture as <a href="ARCHITECTURE.md">ARCHITECTURE.md</a>, drawn in more detail. GitHub shows HTML as source, so open this file locally. Drawn from the code and from the processes actually running on this machine —
 ports measured with <code>lsof</code>, flow read from <code>workflows.ts</code>, role states read
 from <code>/api/system</code>. Written 12 October 2026 against 495834a; the directory-split section
 is kept as a record of a defect since fixed (D-015).</p>
@@ -156,8 +156,8 @@ are the same socket on the same process.</p>
 
   <rect class="zone" x="40" y="490" width="360" height="110" rx="4"/>
   <text class="s" x="52" y="512">another machine on the LAN</text>
-  <rect class="bx-bad" x="60" y="520" width="320" height="60" rx="3"/>
-  <text class="t" x="74" y="547">Ollama :11434</text><text class="s-bad" x="74" y="566">ocr · classify · extract · fallback · embed</text>
+  <rect class="bx" x="60" y="520" width="320" height="60" rx="3"/>
+  <text class="t" x="74" y="547">Ollama :11434</text><text class="s" x="74" y="566">ocr · classify · extract · fallback · embed</text>
 
   <path class="e" d="M140,126 V162" marker-end="url(#a1)"/>
   <text class="s" x="150" y="150">loads the SPA</text>
@@ -177,8 +177,8 @@ are the same socket on the same process.</p>
   <path class="e" d="M500,366 V424" marker-end="url(#a1)" marker-start="url(#a1)"/>
   <text class="s" x="512" y="400">polls queue · reports</text>
 
-  <path class="e-bad" d="M376,462 H290 V326 H248" marker-end="url(#a1b)"/>
-  <text class="s-bad" x="284" y="392" text-anchor="end">reads by hash → ENOENT</text>
+  <path class="e" d="M376,462 H290 V326 H248" marker-end="url(#a1)"/>
+  <text class="s" x="284" y="392" text-anchor="end">reads by hash</text>
 
   <path class="e" d="M624,205 H700 V320 H754" marker-end="url(#a1)"/>
   <text class="s" x="634" y="250">reads documents · vector search</text>
@@ -186,12 +186,10 @@ are the same socket on the same process.</p>
   <path class="e" d="M624,452 H860 V372" marker-end="url(#a1)"/>
   <text class="s" x="640" y="470">inserts file · document · chunks</text>
 
-  <path class="e-bad" d="M440,496 V550 H388" marker-end="url(#a1b)"/>
-  <text class="s-bad" x="452" y="540">five roles · nothing answering</text>
+  <path class="e" d="M440,496 V550 H388" marker-end="url(#a1)"/>
+  <text class="s" x="452" y="540">five roles, one host</text>
 </svg>
-<figcaption>Red dashed marks the two edges failing right now: the worker cannot find the file
-it was asked to read, and no inference host is answering. Everything drawn solid was verified
-up on 12 Oct.</figcaption>
+<figcaption>Every edge here was verified working. The two that once failed — the worker’s file read and the model calls — are the subject of D-015 and the forwarder note below.</figcaption>
 </figure></div>
 
 <h3>Ports</h3>
@@ -294,8 +292,9 @@ single model calls that cannot report progress, so they get no heartbeat at all.
   <text class="s" x="256" y="128">image only</text>
 </svg>
 <figcaption>The decision lives inside the activity because it needs to read the file; the workflow
-only learns that text came back. <code>OCR_TEXT_MODE=always_vlm</code> in your .env overrides
-the test and sends every document down the vision path.</figcaption>
+only learns that text came back. <code>OCR_TEXT_MODE=auto</code> takes the text layer when a page has one, so a
+digital PDF never loads a vision model. Setting it to <code>always_vlm</code> forces the vision
+path for every document, which run 008 showed is the worse reading.</figcaption>
 </figure></div>
 
 <h3>Why each step has the policy it has</h3>

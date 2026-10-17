@@ -310,6 +310,7 @@ engine rather than drifting into three.
 
 | | |
 |---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | What runs where, and what happens to a document |
 | [`docs/PRD.md`](docs/PRD.md) | What is being built, and why — including what is not |
 | [`docs/FRD.md`](docs/FRD.md) | Numbered functional requirements with acceptance criteria |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Append-only log, written as decisions were made |
