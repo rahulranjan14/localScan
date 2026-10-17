@@ -11,9 +11,15 @@ the same thing.
 
 ## Processes and ports
 
-Everything except the models runs on one machine. The browser never reaches
-Postgres or Temporal; the API server never calls a model. Model calls happen
-only inside worker activities, which is what makes them resumable.
+Everything except the models runs on one machine, and the browser never reaches
+Postgres or Temporal directly.
+
+Model calls split between the two processes, and the split is the design.
+**Extraction runs in the worker**, so every model call in it is a Temporal
+activity and survives a crash. **Answering a question runs in the server**,
+in-process and without durability, because a failed answer costs one retry by
+the person who asked. The server also pings a provider for the health indicator
+and sends a probe request when you press Test on the system page.
 
 ```mermaid
 flowchart TB
@@ -36,7 +42,8 @@ flowchart TB
     temporal <-->|polls, reports| worker
     worker -->|reads by hash| files
     worker -->|inserts rows| pg
-    worker -->|model calls| ollama
+    worker -->|extraction: ocr, classify, extract, embed| ollama
+    server -->|answering and health: embed, extract| ollama
 ```
 
 In a built deployment the server also serves the interface, so the UI, the REST
@@ -109,6 +116,10 @@ workflow only learns that text came back.
 
 Extraction is a fixed sequence. Answering is a loop whose next step depends on a
 model's judgement, so it is the one place where a model decides control flow.
+
+It runs **in the server process**, not the worker: there is no durability here
+and none is wanted, because a failed answer costs one retry by the person who
+asked rather than a lost document.
 
 ```mermaid
 flowchart LR
