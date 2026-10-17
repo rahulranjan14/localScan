@@ -27,7 +27,7 @@ hoped.
 
 **It is not a product, and should not be run unattended.** The numbers are in
 [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) and the headline is 71.9% F1 across
-seven invoice fixtures. A document that needs checking is marked for checking
+five invoice fixtures. A document that needs checking is marked for checking
 rather than quietly stored, which is the design answering the accuracy rather
 than hiding it.
 
@@ -35,7 +35,7 @@ Concretely, so nobody discovers these later:
 
 | | |
 |---|---|
-| Accuracy | **71.9% F1** on 7 invoices. Résumés extract well by eye and are **not scored at all** — no labels exist for them |
+| Accuracy | **63.5% F1** on 5 invoices. Résumés extract well by eye and are **not scored at all** — no labels exist for them |
 | Users | One. No authentication, no multi-tenancy, no sharing. The trust boundary is your own machine |
 | Scale | One document at a time, 1–3 minutes each. Durability matters here; throughput was never a goal |
 | Models | Local only. OpenAI and Google are declared in the provider enum and **not implemented** |

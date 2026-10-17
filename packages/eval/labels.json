@@ -20,50 +20,15 @@
     "is still unscored -- labelling one means transcribing every bullet exactly, and",
     "a wrong label is worse than no label. Jake Ryan is the document whose Projects",
     "section had nowhere to go before sections existed; Maya Patel is the one whose",
-    "text layer carries the NUL bytes that made a document unstorable."
+    "text layer carries the NUL bytes that made a document unstorable.",
+    "",
+    "sample-invoice.pdf and simple-invoice.pdf were withdrawn on 2026-10-17: the",
+    "first was supplied from outside this project and carried a name and a GSTIN,",
+    "and a public repository is the wrong place for a document whose provenance",
+    "is not a published sample. The stored run results were removed with them,",
+    "because a result file embeds the full text of every fixture it scored."
   ],
   "fixtures": {
-    "simple-invoice.pdf": {
-      "approved": true,
-      "source": "synthetic, generated for this project",
-      "notes": "11 lines, one described item, no table. A document any model should get completely right, so a failure here is unambiguous.",
-      "type": "invoice",
-      "data": {
-        "invoiceNumber": "INV-001",
-        "invoiceDate": "2026-01-15",
-        "dueDate": null,
-        "poNumber": null,
-        "currency": "INR",
-        "vendor": {
-          "name": "the vendor line",
-          "address": null,
-          "taxId": null,
-          "email": null,
-          "phone": null
-        },
-        "buyer": {
-          "name": "Nivetti Systems Pvt Ltd",
-          "address": null,
-          "taxId": null,
-          "email": null,
-          "phone": null
-        },
-        "lineItems": [
-          {
-            "description": "Office chairs",
-            "quantity": 2,
-            "unitPrice": 5000,
-            "amount": null,
-            "taxRate": null
-          }
-        ],
-        "subtotal": null,
-        "taxTotal": null,
-        "total": 10000,
-        "notes": null,
-        "extraFields": []
-      }
-    },
     "tiny-invoice.pdf": {
       "approved": true,
       "source": "synthetic, generated for this project",
@@ -93,68 +58,6 @@
         "subtotal": null,
         "taxTotal": null,
         "total": 2500,
-        "notes": null,
-        "extraFields": []
-      }
-    },
-    "sample-invoice.pdf": {
-      "approved": true,
-      "source": "supplied by the project owner",
-      "notes": "First fixture with a real line-item table, and the first not generated for the test. The currency glyph does not render in the PDF, so `currency` is null -- a reader cannot tell from the page, and the GSTIN is an inference rather than a statement. There is no invoice number and no date anywhere on it.",
-      "type": "invoice",
-      "data": {
-        "invoiceNumber": null,
-        "invoiceDate": null,
-        "dueDate": null,
-        "poNumber": null,
-        "currency": null,
-        "vendor": {
-          "name": "the vendor name",
-          "address": null,
-          "taxId": "00AAAAA0000A0Z0",
-          "email": null,
-          "phone": null
-        },
-        "buyer": {
-          "name": null,
-          "address": null,
-          "taxId": null,
-          "email": null,
-          "phone": null
-        },
-        "lineItems": [
-          {
-            "description": "Notebook",
-            "quantity": 2,
-            "unitPrice": 250,
-            "amount": 500,
-            "taxRate": null
-          },
-          {
-            "description": "Pen",
-            "quantity": 5,
-            "unitPrice": 40,
-            "amount": 200,
-            "taxRate": null
-          },
-          {
-            "description": "USB Cable",
-            "quantity": 1,
-            "unitPrice": 450,
-            "amount": 450,
-            "taxRate": null
-          },
-          {
-            "description": "Mouse",
-            "quantity": 1,
-            "unitPrice": 900,
-            "amount": 900,
-            "taxRate": null
-          }
-        ],
-        "subtotal": null,
-        "taxTotal": null,
-        "total": 2050,
         "notes": null,
         "extraFields": []
       }

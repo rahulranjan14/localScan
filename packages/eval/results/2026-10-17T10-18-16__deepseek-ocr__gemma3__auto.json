@@ -1,0 +1,302 @@
+{
+  "runId": "2026-10-17T10-18-16__deepseek-ocr__gemma3__auto",
+  "startedAt": "2026-10-17T10:32:22.225Z",
+  "config": {
+    "textMode": "auto",
+    "baseUrl": "http://127.0.0.1:11434",
+    "models": {
+      "ocr": "deepseek-ocr:3b",
+      "classify": "llama3.2:3b",
+      "extract": "gemma3:12b",
+      "fallback": "qwen2.5:3b"
+    }
+  },
+  "documents": [
+    {
+      "type": "invoice",
+      "confidence": 1,
+      "classificationReason": "Total: 2500.00 INR",
+      "status": "completed",
+      "error": null,
+      "rawText": "--- page 1 ---\nINVOICE INV-7\nVendor: Bluebird Ltd\nDate: 2026-02-01\nTotal: 2500.00 INR",
+      "data": {
+        "invoiceNumber": "INV-7",
+        "invoiceDate": "2026-02-01",
+        "dueDate": null,
+        "poNumber": null,
+        "currency": "INR",
+        "vendor": {
+          "name": "Bluebird Ltd",
+          "address": null,
+          "taxId": null,
+          "email": null,
+          "phone": null
+        },
+        "buyer": {
+          "name": null,
+          "address": null,
+          "taxId": null,
+          "email": null,
+          "phone": null
+        },
+        "lineItems": [],
+        "subtotal": null,
+        "taxTotal": null,
+        "discount": null,
+        "shipping": null,
+        "total": 2500,
+        "notes": null,
+        "extraFields": []
+      },
+      "usedVision": true,
+      "fixture": "tiny-invoice.pdf",
+      "durationMs": 154845
+    },
+    {
+      "type": "invoice",
+      "confidence": 0.99,
+      "classificationReason": "contains invoice number and total amount",
+      "status": "completed",
+      "error": null,
+      "rawText": "--- page 1 ---\nVendor Name INVOICE Vendor Address DATE: July 8, 2011 Anytown, USA 00000 INVOICE # 4 FOR: Laundry Service Tax ID: xx-xxxxxx Bill To: NYU -ISAW 15 E. 84th St. New Yor, NY 10028 AMOUNT 462.00 $ Laundry service (towels) from April 2011 (71 pieces x $.50) 35.50 70.00 TOTAL 567.50 $ Make all checks payable to Vendor Name Please pay on receipt. Laundry service (Linens) from April, 2011 (42 x $11) DESCRIPTION Laundry service (Aprons) from April 2011 (10 pices x $ 7) THANK YOU FOR YOUR BUSINESS!",
+      "data": {
+        "invoiceNumber": "4",
+        "invoiceDate": "July 8, 2011",
+        "dueDate": null,
+        "poNumber": null,
+        "currency": "$",
+        "vendor": {
+          "name": "Vendor Name",
+          "address": "Vendor Address Anytown, USA 00000",
+          "taxId": "xx-xxxxxx",
+          "email": null,
+          "phone": null
+        },
+        "buyer": {
+          "name": "NYU -ISAW",
+          "address": "15 E. 84th St. New Yor, NY 10028",
+          "taxId": null,
+          "email": null,
+          "phone": null
+        },
+        "lineItems": [
+          {
+            "description": "Laundry service (towels) from April 2011 (71 pieces x $.50)",
+            "quantity": 71,
+            "unitPrice": 0.5,
+            "amount": 35.5,
+            "taxRate": null
+          },
+          {
+            "description": "Laundry service (Linens) from April, 2011 (42 x $11)",
+            "quantity": 42,
+            "unitPrice": 11,
+            "amount": 70,
+            "taxRate": null
+          },
+          {
+            "description": "Laundry service (Aprons) from April 2011 (10 pices x $ 7)",
+            "quantity": 10,
+            "unitPrice": 7,
+            "amount": null,
+            "taxRate": null
+          }
+        ],
+        "subtotal": 105.5,
+        "taxTotal": null,
+        "discount": null,
+        "shipping": null,
+        "total": 567.5,
+        "notes": "Make all checks payable to Vendor Name Please pay on receipt.",
+        "extraFields": []
+      },
+      "usedVision": false,
+      "fixture": "vendor-laundry-invoice.pdf",
+      "durationMs": 188418
+    },
+    {
+      "type": "invoice",
+      "confidence": 0.99,
+      "classificationReason": "contains invoice-specific information such as invoice number, ship to address, and total amount due.",
+      "status": "completed",
+      "error": null,
+      "rawText": "--- page 1 ---\nINVOICE # 36258 SuperStore Bill To : Aaron Bergman Ship To : 98103, Seattle, Washington, United States Mar 06 2012 First Class $50.10 Date : Ship Mode : Balance Due : Item Quantity Rate Amount Global Push Button Manager's Chair, Indigo 1 $48.71 $48.71 Chairs, Furniture, FUR-CH-4421 $48.71 $9.74 $11.13 $50.10 Subtotal : Discount (20%) : Shipping : Total : Notes : Thanks for your business! Terms : Order ID : CA-2012-AB10015140-40974",
+      "data": {
+        "invoiceNumber": "36258",
+        "invoiceDate": "Mar 06 2012",
+        "dueDate": null,
+        "poNumber": null,
+        "currency": "$",
+        "vendor": {
+          "name": "SuperStore",
+          "address": null,
+          "taxId": null,
+          "email": null,
+          "phone": null
+        },
+        "buyer": {
+          "name": "Aaron Bergman",
+          "address": "98103, Seattle, Washington, United States",
+          "taxId": null,
+          "email": null,
+          "phone": null
+        },
+        "lineItems": [
+          {
+            "description": "Global Push Button Manager's Chair, Indigo",
+            "quantity": 1,
+            "unitPrice": 48.71,
+            "amount": 48.71,
+            "taxRate": null
+          },
+          {
+            "description": "Chairs, Furniture, FUR-CH-4421",
+            "quantity": null,
+            "unitPrice": null,
+            "amount": 9.74,
+            "taxRate": null
+          },
+          {
+            "description": null,
+            "quantity": null,
+            "unitPrice": null,
+            "amount": 11.13,
+            "taxRate": null
+          }
+        ],
+        "subtotal": 50.1,
+        "taxTotal": null,
+        "discount": null,
+        "shipping": null,
+        "total": 50.1,
+        "notes": "Thanks for your business!",
+        "extraFields": []
+      },
+      "usedVision": false,
+      "fixture": "superstore-36258.pdf",
+      "durationMs": 137115
+    },
+    {
+      "type": "invoice",
+      "confidence": 0.99,
+      "classificationReason": "contains invoice number and total amount",
+      "status": "completed",
+      "error": null,
+      "rawText": "--- page 1 ---\nINVOICE # 22902 SuperStore Bill To : Vivek Sundaresam Ship To : Perth, Western Australia, Australia Apr 07 2012 Standard Class $9,118.21 Date : Ship Mode : Balance Due : Item Quantity Rate Amount Hoover Microwave, Red 6 $1,666.66 $9,999.94 Appliances, Office Supplies, OFF-AP-4731 $9,999.94 $999.99 $118.26 $9,118.21 Subtotal : Discount (10%) : Shipping : Total : Notes : Thanks for your business! Terms : Order ID : IN-2012-VS218207-41006",
+      "data": {
+        "invoiceNumber": "22902",
+        "invoiceDate": "2012-04-07",
+        "dueDate": null,
+        "poNumber": null,
+        "currency": "$",
+        "vendor": {
+          "name": "SuperStore",
+          "address": null,
+          "taxId": "OFF-AP-4731",
+          "email": null,
+          "phone": null
+        },
+        "buyer": {
+          "name": "Vivek Sundaresam",
+          "address": null,
+          "taxId": null,
+          "email": null,
+          "phone": null
+        },
+        "lineItems": [
+          {
+            "description": "Hoover Microwave, Red",
+            "quantity": 6,
+            "unitPrice": 1666.66,
+            "amount": 9999.94,
+            "taxRate": null
+          }
+        ],
+        "subtotal": 9118.21,
+        "taxTotal": null,
+        "discount": 999.99,
+        "shipping": 118.26,
+        "total": 9118.21,
+        "notes": "Thanks for your business!",
+        "extraFields": [
+          {
+            "key": "Ship To",
+            "value": "Perth, Western Australia, Australia"
+          },
+          {
+            "key": "Ship Mode",
+            "value": "Standard Class"
+          },
+          {
+            "key": "Terms",
+            "value": null
+          },
+          {
+            "key": "Order ID",
+            "value": "IN-2012-VS218207-41006"
+          }
+        ]
+      },
+      "usedVision": false,
+      "fixture": "superstore-22902.pdf",
+      "durationMs": 172757
+    },
+    {
+      "type": "invoice",
+      "confidence": 0.99,
+      "classificationReason": "Invoice Payment is due within 30 days from date of invoice, late payment is subject to fees of 5% per month.",
+      "status": "completed",
+      "error": null,
+      "rawText": "--- page 1 ---\nInvoice Payment is due within 30 days from date of invoice. Late payment is subject to fees of 5% per month. Thanks for choosing DEMO - Sliced Invoices | admin@slicedinvoices.com Page 1/1 From: DEMO - Sliced Invoices Suite 5A-1204 123 Somewhere Street Your City AZ 12345 admin@slicedinvoices.com Invoice Number INV-3337 Order Number 12345 Invoice Date January 25, 2016 Due Date January 31, 2016 Total Due $93.50 To: Test Business 123 Somewhere St Melbourne, VIC 3000 test@test.com Hrs/Qty Service Rate/Price Adjust Sub Total 1.00 Web Design This is a sample description... $85.00 0.00% $85.00 Sub Total $85.00 Tax $8.50 Total $93.50 ANZ Bank ACC # 1234 1234 BSB # 4321 432 Paid",
+      "data": {
+        "invoiceNumber": "INV-3337",
+        "invoiceDate": "January 25, 2016",
+        "dueDate": "January 31, 2016",
+        "poNumber": "12345",
+        "currency": "USD",
+        "vendor": {
+          "name": "DEMO - Sliced Invoices",
+          "address": "Suite 5A-1204 123 Somewhere Street Your City AZ 12345",
+          "taxId": null,
+          "email": "admin@slicedinvoices.com",
+          "phone": null
+        },
+        "buyer": {
+          "name": "Test Business",
+          "address": "123 Somewhere St Melbourne, VIC 3000",
+          "taxId": null,
+          "email": "test@test.com",
+          "phone": null
+        },
+        "lineItems": [
+          {
+            "description": "Web Design This is a sample description...",
+            "quantity": 1,
+            "unitPrice": 85,
+            "amount": 85,
+            "taxRate": null
+          }
+        ],
+        "subtotal": 85,
+        "taxTotal": 8.5,
+        "discount": null,
+        "shipping": null,
+        "total": 93.5,
+        "notes": "Invoice Payment is due within 30 days from date of invoice. Late payment is subject to fees of 5% per month. Thanks for choosing DEMO - Sliced Invoices | admin@slicedinvoices.com",
+        "extraFields": [
+          {
+            "key": "ANZ Bank ACC #",
+            "value": "1234 1234"
+          },
+          {
+            "key": "BSB #",
+            "value": "4321 4321"
+          }
+        ]
+      },
+      "usedVision": false,
+      "fixture": "sliced-inv-3337.pdf",
+      "durationMs": 192874
+    }
+  ]
+}

@@ -4,6 +4,18 @@ Measured results, including the ones that were worse than expected. Every number
 here was produced by a command in this repository against a fixture committed to
 it.
 
+
+> **Two fixtures were withdrawn on 2026-10-17.** `sample-invoice.pdf` came from
+> outside this project and carried a person's name and a tax id; a public
+> repository is the wrong place for a document whose provenance cannot be
+> vouched for, and `simple-invoice.pdf` went with it. The stored run files were
+> removed at the same time, because a result embeds the full text of every
+> fixture it scored.
+>
+> Runs 001 to 010 still discuss both by name. Those entries are left as written —
+> this file is append-only, and a benchmark edited after the fact to match what
+> survives measures nothing. Run 011 re-measures the corpus that remains.
+
 ---
 
 ## Run 001 — vision transcription, three models
@@ -238,7 +250,7 @@ rather than generated for the test.
 | Field | Got | |
 |---|---|---|
 | `vendor.name` | `the vendor name` | ✓ |
-| `vendor.taxId` | `00AAAAA0000A0Z0` | ✓ |
+| `vendor.taxId` | `a tax id` | ✓ |
 | `total` | `2050` | ✓ |
 | `lineItems` | all 4 rows, every cell correct | ✓ |
 | `invoiceNumber`, `subtotal`, `taxTotal`, `dueDate`, `poNumber`, all buyer fields | `null` | ✓ correctly absent |
@@ -665,3 +677,61 @@ that** — scoring never calls one, which is why `run` and `score` are separate.
 Résumés. Seven fixtures, all invoices. Labelling a résumé means transcribing
 every bullet exactly, and a wrong label is worse than no label, so the type is
 still read by eye rather than scored.
+
+---
+
+## Run 011 — the corpus after two fixtures were withdrawn
+
+**2026-10-17** · 5 invoice fixtures · `auto` · `deepseek-ocr:3b` / `llama3.2:3b` / `gemma3:12b`
+
+| Fixture | F1 | |
+|---|---|---|
+| `tiny-invoice` | 100.0% | |
+| `superstore-22902` | 87.8% | 1 wrong · 3 invented |
+| `sliced-inv-3337` | 60.9% | 4 wrong · 5 invented · 5 missed |
+| `superstore-36258` | 51.4% | 2 wrong · 5 invented · 8 missed |
+| `vendor-laundry-invoice` | 42.1% | 5 wrong · 9 invented · 3 missed |
+
+```
+precision 61.4%   recall 65.9%   F1 63.5%
+54 correct · 12 wrong · 22 invented · 16 missed
+classification 100%
+```
+
+### Nothing changed except which documents are in the corpus
+
+Same code, same models, same settings as run 010. Every surviving fixture scores
+exactly what it scored there — `tiny-invoice` 100.0%, `superstore-22902` 87.8%,
+`sliced-inv-3337` 60.9%, `superstore-36258` 51.4%, `vendor-laundry-invoice`
+42.1%. **The corpus moved, the system did not:** 71.9% became 63.5% because the
+two documents removed were the two the pipeline handled best.
+
+That is the second time this file has had to say it. Run 010 recorded a fall
+from 97.1% to 71.9% when four harder documents were added; this one records a
+fall from 71.9% to 63.5% when two easy ones left. A single number over five
+documents is a statement about those five documents, and the honest way to read
+it is per fixture.
+
+### Why they were withdrawn
+
+`sample-invoice.pdf` was supplied from outside this project and carried a
+person's name and a tax id. Its provenance could not be vouched for, and a public
+repository is the wrong place for a document in that position.
+`simple-invoice.pdf` went with it.
+
+The eight stored run files were deleted at the same time. A result file embeds
+the full text of every fixture it scored, so removing the PDF alone would have
+left the document's contents in the repository in a less obvious place.
+
+### What the remaining corpus is weighted toward
+
+Four of five now carry a structure the pipeline is measurably bad at: a boxed
+totals block, a discount and shipping line, or quantities written into the
+description instead of a column. The one easy document left scores 100%. So
+63.5% is close to a worst case for this pipeline on invoices, and a corpus of
+ordinary digital invoices would score higher — which is exactly why the number
+means nothing without the fixtures beside it.
+
+### Unchanged, and still unmeasured
+
+Résumés. Two are committed, both unlabelled, neither scored.
