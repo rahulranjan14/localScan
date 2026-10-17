@@ -152,7 +152,5 @@ that is too broad can still be checked.
 | Plausibility checks | [`shared/src/documents/checks.ts`](../packages/shared/src/documents/checks.ts) |
 | A document type | [`documents/<type>/`](../documents/) + a schema and a registry entry |
 
-**The structural rule:** `packages/core` imports nothing from Express, Postgres
-or any orchestrator. Given bytes and a model binding it returns a result — which
-is what lets the interface, the agent surface and the evaluation harness share
-one engine rather than drifting into three.
+The structural rule behind that table is in the [README](../README.md):
+`packages/core` imports nothing from Express, Postgres or any orchestrator.
