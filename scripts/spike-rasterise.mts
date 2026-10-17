@@ -3,6 +3,14 @@
  *
  *   npm run spike:rasterise -- <file.pdf> [--dpi 150,200,300]
  *
+ * Only the winner ships, so re-running the full comparison needs the two
+ * candidates that lost:
+ *
+ *   npm i -D @napi-rs/canvas pdf-to-img
+ *
+ * Without them those rows report the missing package and the pdfium row still
+ * runs, which is enough to re-check the memory ceiling but not the comparison.
+ *
  * This is committed rather than thrown away because the numbers it produced are
  * cited in DECISIONS.md, and a decision justified by measurements nobody can
  * reproduce is just an assertion with numbers in it.
