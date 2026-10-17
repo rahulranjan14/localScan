@@ -171,6 +171,20 @@ Models elsewhere? Point the containers at them and skip step 1:
 echo 'DOCKER_OLLAMA_BASE_URL=http://<host>:11434' >> .env
 ```
 
+Different models? Each pipeline stage binds to its own, by name, in `.env`:
+
+```bash
+OCR_MODEL_OCR=qwen2.5vl:3b        # only for pages with no text layer
+OCR_MODEL_CLASSIFY=qwen2.5:3b     # invoice / resume / generic
+OCR_MODEL_EXTRACT=gemma3:12b      # fills the schema — the accuracy-critical one
+OCR_MODEL_EMBED=nomic-embed-text  # chunks for retrieval
+```
+
+Any model your host has pulled works; there is no allowlist in the code. A 12B
+extractor beside a 3B classifier is a normal configuration, and
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) is what that choice is worth. Restart
+after changing one.
+
 `docker compose down` stops it; `docker compose down -v` also deletes the
 database and the stored documents.
 
