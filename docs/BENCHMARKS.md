@@ -33,7 +33,7 @@ npm run check:vision -- packages/eval/fixtures/simple-invoice.pdf \
 benchmark. It is recorded because what it shows is not what the obvious metric
 says, and that is worth having written down before a larger run exists.
 
-The fixture ([`packages/eval/fixtures/simple-invoice.pdf`](../packages/eval/fixtures/simple-invoice.pdf))
+The fixture (`simple-invoice.pdf`, since withdrawn — see the notice above)
 is deliberately trivial: 11 lines, one line item, no tables, no stamps, generated
 rather than scanned. Its job is to be a document that any model should get
 completely right, so a failure is unambiguous.
