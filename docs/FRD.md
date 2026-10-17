@@ -18,7 +18,7 @@ reading the implementation.
 Two machines, four processes.
 
 ```
-  ┌──────────────────────── MacBook Air · application host ─────────────────────┐
+  ┌──────────────────────── application host · 8 GB ────────────────────────────┐
   │                                                                              │
   │   browser ──────► web interface ──┐                                          │
   │                                   │                                          │
@@ -32,7 +32,7 @@ Two machines, four processes.
   │                                   └───────────────────────────┤              │
   └───────────────────────────────────────────────────────────────┼──────────────┘
                                                                   │ HTTP
-  ┌──────────────────────── Ubuntu desktop · inference host ───────┼──────────────┐
+  ┌──────────────────────── inference host · 32 GB · LAN ──────────┼──────────────┐
   │                                                                ▼              │
   │   Ollama   ·   vision model  ·  text model  ·  embedding model                │
   └──────────────────────────────────────────────────────────────────────────────┘

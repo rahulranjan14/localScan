@@ -10,10 +10,10 @@ if a decision is reversed, a new entry supersedes it.
 
 **2026-10-06**
 
-All models run on a 32 GB Linux machine on the LAN, reached over HTTP. The
-application host is an 8 GB MacBook Air and **never loads a model.**
+All models run on a separate 32 GB machine on the LAN, reached over HTTP. The
+application host has 8 GB and **never loads a model.**
 
-The alternative was running Ollama on the Mac. Rejected: 8 GB leaves roughly
+The alternative was running the models on the application host. Rejected: 8 GB leaves roughly
 5 GB after the operating system, so only one ~2-3 GB model can be resident and
 every role change forces an unload and reload.
 

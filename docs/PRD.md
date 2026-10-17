@@ -131,8 +131,8 @@ become the proof that adding a type is genuinely three files.
 
 | Machine | Role | Spec |
 |---|---|---|
-| MacBook Air | **Application host** — API, database, orchestration, interface | 8 GB RAM |
-| Ubuntu desktop (LAN) | **Inference host** — all models | 32 GB RAM, Ollama installed |
+| Application host | API, database, orchestration, interface | 8 GB RAM |
+| Inference host (LAN) | All models, reached over HTTP | 32 GB RAM |
 
 This split is the central environmental fact. The application machine never
 loads a model, so it stays responsive on 8 GB; the inference machine has room
