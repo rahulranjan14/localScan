@@ -2,13 +2,6 @@
 
 What runs where, and what happens to a document between upload and review.
 
-A hand-drawn version of these diagrams, with more detail and the defect history,
-is in [`architecture.html`](architecture.html) — GitHub renders HTML as source,
-so open that file locally. This page is the one to read online, and the two say
-the same thing.
-
----
-
 ## Processes and ports
 
 Everything except the models runs on one machine, and the browser never reaches
