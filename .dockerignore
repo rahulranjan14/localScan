@@ -18,3 +18,5 @@ sample-pdfs
 *.zip
 spike-out
 docs
+
+*.local.md

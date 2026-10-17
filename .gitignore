@@ -37,3 +37,6 @@ data/
 # cannot quietly undo reproducibility.
 !packages/eval/fixtures/**
 !packages/eval/labels.json
+
+# Session scaffolding, not part of the project.
+*.local.md
