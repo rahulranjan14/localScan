@@ -28,7 +28,18 @@ const server = app.listen(config.port, host, () => {
   console.log(`  extract    ${config.roles.extract?.model ?? '(unconfigured)'}`)
   // Printed because a silently-unloaded .env is the failure this replaced: the
   // server came up healthy and pointed at the wrong host.
-  console.log(`  env        ${loadedEnvFile ?? '(no .env found — using defaults)'}`)
+  // Three states, not two. In a container there is no .env file and there was
+  // never meant to be one -- the values arrive from the environment, and saying
+  // 'using defaults' there sends someone to debug configuration that worked.
+  const configuredRoles = Object.values(config.roles).filter(Boolean).length
+  console.log(
+    `  env        ${
+      loadedEnvFile ??
+      (configuredRoles > 0
+        ? '(no .env file — values came from the environment)'
+        : '(no .env found — using defaults)')
+    }`,
+  )
 
   // Checked at startup and said plainly, because the failure is silent
   // otherwise: an upload is accepted, a run is created, and nothing ever runs
