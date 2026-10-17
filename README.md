@@ -84,6 +84,18 @@ Upload a PDF — digital or scanned — and get editable, schema-validated JSON.
   Awards are kept under the heading the document printed above them, so a section
   the schema never named survives extraction instead of being forced into the
   nearest field that fits badly.
+- **Status you can act on.** The system page reports the database, Temporal and
+  the inference host, every model installed on that host, and one of seven states
+  per role — `ready`, `unreachable`, `not_installed`, `unconfigured`,
+  `incapable` and the rest — each with the command or change that fixes it. A
+  per-role **Test** probes something no provider reports: whether that model
+  actually honours a JSON schema.
+- **Exportable.** The review screen downloads the fields as JSON, including edits
+  not yet saved — the copy you are looking at, not the copy on the server.
+- **Fenced, and honest about what fencing achieves.** Document text is delimited
+  and scanned for injection patterns, and the scan never blocks: a persuasive
+  payload can still steer a 3B model. What contains it is that the model has no
+  tools and its output is schema-validated before anything uses it.
 - **Measured.** `npm run eval` scores every field in the schema against committed
   ground truth, counting *invented* values separately from wrong ones.
 
@@ -102,6 +114,10 @@ findings are worth knowing before trusting any output:
   came back with amounts on the wrong rows because `pdfjs` emits the amount
   column before the descriptions. Every character was right; every relationship
   was wrong.
+
+- **The injection scan goes nowhere.** Every extraction scans its document text
+  for injection patterns and the result is dropped — not stored, not shown, not
+  counted across runs. The scanning is real; the reporting was never built.
 
 ## Not built yet
 
