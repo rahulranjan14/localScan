@@ -13,7 +13,14 @@
     "The predecessor system's harness was well designed and unreproducible: its",
     ".gitignore excluded *.pdf and the metrics files, so twenty approved labels",
     "referenced fixtures nobody had. A result that cannot be reproduced from this",
-    "repository does not count (FR-10.1)."
+    "repository does not count (FR-10.1).",
+    "",
+    "resume-jake-ryan.pdf and resume-maya-patel.pdf carry no label and are not run:",
+    "only entries marked approved:true are. They are here because the resume type",
+    "is still unscored -- labelling one means transcribing every bullet exactly, and",
+    "a wrong label is worse than no label. Jake Ryan is the document whose Projects",
+    "section had nowhere to go before sections existed; Maya Patel is the one whose",
+    "text layer carries the NUL bytes that made a document unstorable."
   ],
   "fixtures": {
     "simple-invoice.pdf": {
