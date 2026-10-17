@@ -17,26 +17,26 @@ only inside worker activities, which is what makes them resumable.
 
 ```mermaid
 flowchart TB
-    browser["Browser<br/><small>review · ask · system</small>"]
-    agent["MCP client<br/><small>an agent, no browser</small>"]
-    web["web<br/><small>:5173 · Vite · React</small>"]
-    server["server<br/><small>:3000 · HTTP API + /mcp</small>"]
-    files[("data/files/<br/><small>bytes keyed by sha256</small>")]
-    temporal["Temporal<br/><small>:7233 gRPC · UI :8233</small>"]
-    pg[("PostgreSQL<br/><small>:5432 · pgvector</small>")]
-    worker["worker<br/><small>task queue ocr</small>"]
-    ollama["Ollama :11434<br/><small>ocr · classify · extract · fallback · embed</small>"]
+    browser["Browser"]
+    agent["MCP client"]
+    web["web :5173<br/>Vite + React"]
+    server["server :3000<br/>HTTP API + /mcp"]
+    files[("data/files<br/>keyed by sha256")]
+    temporal["Temporal<br/>:7233 gRPC, UI :8233"]
+    pg[("PostgreSQL :5432<br/>with pgvector")]
+    worker["worker<br/>task queue: ocr"]
+    ollama["Ollama :11434<br/>five model roles"]
 
     browser -->|loads the SPA| web
-    web -->|fetch /api/*| server
+    web -->|fetch /api| server
     agent -->|POST /mcp| server
     server -->|writes bytes| files
-    server -->|"start extract-&lt;sha16&gt;"| temporal
-    server -->|reads documents · vector search| pg
-    temporal <-->|polls queue · reports| worker
+    server -->|starts a workflow| temporal
+    server -->|reads, vector search| pg
+    temporal <-->|polls, reports| worker
     worker -->|reads by hash| files
-    worker -->|inserts file · document · chunks| pg
-    worker -->|five roles, one host| ollama
+    worker -->|inserts rows| pg
+    worker -->|model calls| ollama
 ```
 
 In a built deployment the server also serves the interface, so the UI, the REST
@@ -63,12 +63,12 @@ itself.
 
 ```mermaid
 flowchart LR
-    A["1 validateInput<br/><small>30s · 1 attempt</small>"]
-    B["2 acquireText<br/><small>35min · heartbeat 2min · 3</small>"]
-    C["3 classify<br/><small>25min · 3 attempts</small>"]
-    D["4 extract<br/><small>25min · 3 attempts</small>"]
-    E["5 persist<br/><small>1min · 5 attempts</small>"]
-    F["6 index<br/><small>35min · 3 · may fail</small>"]
+    A["1 validateInput<br/>30s, 1 attempt"]
+    B["2 acquireText<br/>35min, heartbeat 2min, 3 attempts"]
+    C["3 classify<br/>25min, 3 attempts"]
+    D["4 extract<br/>25min, 3 attempts"]
+    E["5 persist<br/>1min, 5 attempts"]
+    F["6 index<br/>35min, 3 attempts, may fail"]
 
     A --> B --> C --> D --> E --> F
 ```
@@ -86,9 +86,14 @@ embedded is still useful.
 
 ```mermaid
 flowchart LR
-    pdf["acquireText"] --> q{"usable<br/>text layer?"}
-    q -->|yes| txt["pdf.js reads it<br/><small>exact · instant · no model</small>"]
-    q -->|no| vlm["rasterize → vision model<br/><small>one request per page</small>"]
+    pdf["acquireText"]
+    q{"usable text layer?"}
+    txt["pdf.js reads it<br/>exact, instant, no model"]
+    vlm["rasterize, then vision model<br/>one request per page"]
+
+    pdf --> q
+    q -->|yes| txt
+    q -->|no| vlm
 ```
 
 `OCR_TEXT_MODE=auto` takes the text layer when a page has one. Run 008 measured
@@ -107,12 +112,19 @@ model's judgement, so it is the one place where a model decides control flow.
 
 ```mermaid
 flowchart LR
-    S((start)) --> R["retrieve<br/><small>cosine, page-aware</small>"]
-    R --> G{"grade<br/><small>sufficient?</small>"}
-    G -->|"sufficient · or budget spent"| A["generate<br/><small>answer + citations</small>"]
-    G -->|insufficient| W["rewrite<br/><small>different wording</small>"]
+    S((start))
+    R["retrieve<br/>cosine, page-aware"]
+    G{"grade: sufficient?"}
+    A["generate<br/>answer with citations"]
+    W["rewrite<br/>different wording"]
+    E((end))
+
+    S --> R
+    R --> G
+    G -->|sufficient, or budget spent| A
+    G -->|insufficient| W
     W --> R
-    A --> E((end))
+    A --> E
 ```
 
 Grading is strict on purpose: partial relevance counts as insufficient, because
