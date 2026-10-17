@@ -101,7 +101,7 @@ what is already installed on your machine.
 it to more than loopback:
 
 ```bash
-ollama pull qwen2.5:3b && ollama pull nomic-embed-text && ollama pull granite3.2-vision
+ollama pull qwen2.5:3b && ollama pull nomic-embed-text && ollama pull qwen2.5vl:3b
 OLLAMA_HOST=0.0.0.0 ollama serve
 ```
 
