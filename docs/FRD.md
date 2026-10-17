@@ -389,4 +389,19 @@ local and a remote stage buys speed, not privacy — the full text still leaves.
 | 4 | FR-6 | A long document answers a question with a page citation |
 | 5 | FR-7 | An external agent extracts a document |
 | 6 | FR-1.5, NFR-2 | The worker is killed mid-run and the run resumes |
-| 7 | FR-8.4-8.10, FR-9 | Swapping a role's model is a dropdown change |
+| 7 *(partial)* | FR-8.4-8.10, FR-9 | Swapping a role's model is a dropdown change — **not met** |
+
+**What phase 7 delivered, and what it did not.** FR-8.1, FR-8.7, FR-8.8, FR-8.9
+and all of FR-9 are built: five roles bound independently, the models installed
+on the host listed, vision and embedding capability read from provider metadata,
+a per-role probe for structured output, and the seven role states on the system
+page.
+
+FR-8.4 (providers managed at runtime), FR-8.5 (`data/config.json` at mode 0600)
+and FR-8.10 (dropdowns filtered by capability) are **not built**, and FR-8.3's
+acceptance is unmet in two ways: the base URL is one value shared by every role
+rather than one per provider, and changing it needs a restart.
+
+Bindings are environment variables. That is enough to compare models — every
+number in `BENCHMARKS.md` came from changing one — but it is not the screen the
+requirement describes, and the gap is recorded rather than quietly rescoped.

@@ -5,7 +5,10 @@ A local-first document intelligence application. PDF in, validated typed JSON ou
 Every model runs on hardware you control. In the default configuration nothing
 leaves your network.
 
-> **All seven phases are built.** This README describes only what is built and verified today.
+> **Phases 1 to 6 are complete; phase 7 is partial.** Role bindings, capability
+> detection, the per-role probe and the system page are built; the settings
+> screen that would make swapping a model a dropdown is not, so bindings live in
+> `.env` and need a restart. This README describes only what is built and verified today.
 > Planned work is in [`docs/PRD.md`](docs/PRD.md); decisions, including the ones
 > that turned out to be wrong, are in [`docs/DECISIONS.md`](docs/DECISIONS.md);
 > measured results, including the ones that were worse than hoped, are in

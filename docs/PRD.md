@@ -164,7 +164,7 @@ its own branch and merged with `--no-ff`.
 | **4 · Retrieval** | Chunking, embeddings, vector search, self-correcting Q&A graph | A question about a long document returns a cited answer |
 | **5 · Agent surface** | MCP server, six tools, one port | An external agent extracts a document |
 | **6 · Durability** | Workflow orchestration, retries, asynchronous submission | Killing the worker mid-run resumes it |
-| **7 · Providers** | Configurable endpoints, capability detection, settings interface | Swapping a role's model is a dropdown change |
+| **7 · Providers** *(partial)* | Configurable endpoints, capability detection, settings interface | Swapping a role's model is a dropdown change — **not met:** bindings are `.env` plus a restart |
 
 Phase 3 precedes Phase 4 deliberately. Once measurement exists, every later
 change is measurable — and that ordering is itself the argument.

@@ -736,3 +736,44 @@ project is arranged to avoid.
 `subtotal` is the one field both invoices got wrong, in the same way — copying
 the total. That is a pattern worth a prompt line eventually, and it is the only
 prompt change this run would justify.
+
+---
+
+## D-019 · Phase 7 is recorded as partial, because its acceptance criterion is not met
+
+**2026-10-17**
+
+The README said all seven phases were built. Phase 7's acceptance, written in
+both the PRD and `FRD.md`, is *"swapping a role's model is a dropdown change"* —
+and there is no dropdown. There is no settings screen, no route that changes a
+binding, and `data/config.json` exists only as a comment in `config.ts`
+describing work that was never done.
+
+What phase 7 did deliver is real: five roles bound independently, the models
+installed on the host listed, vision and embedding capability read from provider
+metadata rather than guessed from family names (`D-007`), a per-role probe for
+structured output (`FR-8.9`), and the seven role states on the system page
+(`D-014`). That is most of the value — every comparison in `BENCHMARKS.md` came
+from rebinding a role — but it is not what the requirement says.
+
+Bindings are environment variables and changing one needs a restart. `FR-8.3`
+promised no restart and a base URL per provider; there is one base URL shared by
+every role.
+
+### Why this is written down rather than rescoped
+
+The honest options were to build the screen, to lower the requirement, or to
+record the gap. Lowering it would be the worst of the three: a requirement
+rewritten to match what was built measures nothing afterwards, in the same way
+that a label adjusted to match a model's output measures nothing (`run 007`).
+
+The requirement stays as written. The phase table now says *partial* and names
+which requirements are unmet, so the next person reads a gap rather than
+discovering one.
+
+### What a reader should take from it
+
+Nothing here claims the project is finished. It claims what it measured and what
+it did not build, and this entry exists because a README that said "all seven
+phases" was the only sentence in the repository that a reader could have checked
+and found false.
