@@ -1,0 +1,117 @@
+# Everything except the models, isolated from whatever the host already runs.
+#
+# Postgres, Temporal, the API and the worker come up in containers on their own
+# network, so a Postgres or Temporal already installed on the host is untouched
+# and no version has to agree with it. Only the ports published below are shared.
+#
+# The models are not here on purpose: they are the one part that needs the host's
+# memory and GPU, and containerising Ollama to reach back out would be slower and
+# no more reproducible. Point OLLAMA_BASE_URL at wherever they run.
+
+name: agentic-ocr
+
+services:
+  postgres:
+    # pgvector ships in this image, which is otherwise a source build (D-011).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ocr
+      POSTGRES_PASSWORD: ocr
+      POSTGRES_DB: ocr
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ocr -d ocr']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_SEEDS: postgres
+      POSTGRES_USER: ocr
+      POSTGRES_PWD: ocr
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'temporal', 'workflow', 'list', '--address', 'temporal:7233']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - '8233:8080'
+    depends_on:
+      temporal:
+        condition: service_started
+    restart: unless-stopped
+
+  server:
+    build: .
+    # Values come from .env; these override the ones that mean something
+    # different inside a container than they do on the host.
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://ocr:ocr@postgres:5432/ocr
+      TEMPORAL_ADDRESS: temporal:7233
+      # The models run on the host or on another machine, never in this network.
+      # A separate name from OLLAMA_BASE_URL on purpose: compose reads .env too,
+      # so reusing the name would substitute the host value straight back in.
+      OLLAMA_BASE_URL: ${DOCKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OCR_DATA_DIR: /app/data
+      # The hop out of the container VM to a LAN host costs more than the
+      # default liveness budget allows.
+      OCR_PING_TIMEOUT_MS: ${OCR_PING_TIMEOUT_MS:-10000}
+      HOST: 0.0.0.0
+    ports:
+      - '3000:3000'
+    volumes:
+      - documents:/app/data
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ['node', 'packages/worker/dist/main.js']
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://ocr:ocr@postgres:5432/ocr
+      TEMPORAL_ADDRESS: temporal:7233
+      OLLAMA_BASE_URL: ${DOCKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OCR_DATA_DIR: /app/data
+      # The hop out of the container VM to a LAN host costs more than the
+      # default liveness budget allows.
+      OCR_PING_TIMEOUT_MS: ${OCR_PING_TIMEOUT_MS:-10000}
+    volumes:
+      - documents:/app/data
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  # The PDFs themselves, shared by the API that writes them and the worker that
+  # reads them -- one store with one definition of where it is (D-015).
+  documents:

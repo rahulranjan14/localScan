@@ -1,0 +1,20 @@
+# Build state must not cross into the image. tsconfig.tsbuildinfo sits beside
+# each tsconfig.json rather than inside dist, so excluding dist alone let stale
+# incremental state in -- and tsc then skipped emitting the declarations it
+# believed were already there, producing index.js with no index.d.ts.
+*.tsbuildinfo
+**/*.tsbuildinfo
+**/dist
+node_modules
+**/node_modules
+
+# Not part of the build, and not something to copy into a published image.
+.git
+.github
+.env
+data
+handoff
+sample-pdfs
+*.zip
+spike-out
+docs

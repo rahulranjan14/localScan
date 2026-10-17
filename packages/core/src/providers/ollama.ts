@@ -116,7 +116,13 @@ export const TIMEOUTS = {
 const DEFAULT_MAX_OUTPUT_TOKENS = 2048
 
 /** Cheap checks must stay cheap -- they run on a 30s poll (FR-9.4). */
-const PING_TIMEOUT_MS = 3_000
+/**
+ * Three seconds is right for a host on the same machine or a flat LAN. It is not
+ * right from inside a container, where the hop out through the VM's gateway to a
+ * machine on the LAN can exceed it while every real request still succeeds -- the
+ * health page then reports five unreachable roles against a host that is serving.
+ */
+const PING_TIMEOUT_MS = Number(process.env.OCR_PING_TIMEOUT_MS ?? 3_000)
 
 interface OllamaGenerateResponse {
   response?: string

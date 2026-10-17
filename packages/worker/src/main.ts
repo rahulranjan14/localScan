@@ -5,7 +5,7 @@
 import '@ocr/server/env'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { Worker } from '@temporalio/worker'
+import { NativeConnection, Worker } from '@temporalio/worker'
 import * as activities from './activities.js'
 
 /**
@@ -38,7 +38,18 @@ const workflowsFile = self.endsWith('.ts') ? 'workflows.ts' : 'workflows.js'
  */
 const concurrency = Number(process.env.OCR_WORKER_CONCURRENCY ?? 1)
 
+/**
+ * The server already honoured TEMPORAL_ADDRESS; the worker did not, and defaulted
+ * to localhost. That is invisible until the two run in separate containers, where
+ * localhost is the container itself and the worker polls nothing forever.
+ */
+const connection = await NativeConnection.connect({
+  address: process.env.TEMPORAL_ADDRESS ?? '127.0.0.1:7233',
+})
+
 const worker = await Worker.create({
+  connection,
+  namespace: process.env.TEMPORAL_NAMESPACE ?? 'default',
   maxConcurrentActivityTaskExecutions: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
   // Workflows run in an isolated sandbox with no access to the host's modules,
   // which is what enforces their determinism. They are referenced by path rather
@@ -46,7 +57,6 @@ const worker = await Worker.create({
   workflowsPath: join(here, workflowsFile),
   activities,
   taskQueue: 'ocr',
-  namespace: 'default',
 })
 
 console.log(`  worker     task queue "ocr" · namespace default · ${concurrency} activity at a time`)

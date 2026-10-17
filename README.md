@@ -92,7 +92,46 @@ one registry entry.
 
 ---
 
-## Running it
+## Quickstart
+
+Everything except the models runs in containers, so nothing has to agree with
+what is already installed on your machine.
+
+**1. The models.** Ollama must be reachable from a container, which means binding
+it to more than loopback:
+
+```bash
+ollama pull qwen2.5:3b && ollama pull nomic-embed-text && ollama pull granite3.2-vision
+OLLAMA_HOST=0.0.0.0 ollama serve
+```
+
+**2. The application.**
+
+```bash
+git clone <this repo> && cd agentic-ocr
+cp .env.example .env
+docker compose up
+```
+
+Then open **http://localhost:3000** — the interface, the REST API and the MCP
+endpoint share that port. Temporal's console is on **http://localhost:8233**.
+
+The first run builds the image and pulls Postgres and Temporal, so it takes a
+few minutes; after that it is seconds. Nothing is installed outside Docker: your
+own Postgres, Temporal and their versions are untouched.
+
+Models elsewhere? Point the containers at them and skip step 1:
+
+```bash
+echo 'DOCKER_OLLAMA_BASE_URL=http://<host>:11434' >> .env
+```
+
+`docker compose down` stops it; `docker compose down -v` also deletes the
+database and the stored documents.
+
+## Running it without Docker
+
+
 
 Two machines are assumed: this one runs the application, another on your LAN runs
 the models. Both on one machine works too — point the base URL at localhost.

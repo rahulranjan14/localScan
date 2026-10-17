@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 import multer from 'multer'
 import {
@@ -14,7 +16,7 @@ import {
   updateEditedData,
 } from './repositories/documents.js'
 import { findFileById } from './repositories/files.js'
-import { readStoredFile } from './storage/fileStore.js'
+import { dataDir, readStoredFile } from './storage/fileStore.js'
 import {
   DuplicateDocument,
   describeRun,
@@ -230,6 +232,23 @@ export function createApp(config: ServerConfig): Express {
       next(error)
     }
   })
+
+  // The built interface, when there is one.
+  //
+  // In development Vite serves it on its own port with hot reload. A built
+  // deployment has no Vite, and serving the bundle here means the API, the MCP
+  // surface and the interface share one origin -- so no CORS, no second port,
+  // and no reverse proxy to explain.
+  const webDist = process.env.OCR_WEB_DIST ?? resolve(dataDir(), '..', 'packages/web/dist')
+  if (existsSync(join(webDist, 'index.html'))) {
+    app.use(express.static(webDist, { index: false }))
+    // A single-page app owns its routes: anything not matched above is the
+    // interface asking for a deep link, not a missing file. API paths are
+    // excluded so a typo there still answers 404 rather than HTML.
+    app.get(/^(?!\/api\/|\/mcp).*/, (_req, res) => {
+      res.sendFile(join(webDist, 'index.html'))
+    })
+  }
 
   app.use(errorHandler)
   return app

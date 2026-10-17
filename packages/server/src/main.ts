@@ -17,8 +17,13 @@ if (applied.length > 0) {
 
 const app = createApp(config)
 
-const server = app.listen(config.port, '127.0.0.1', () => {
-  console.log(`  server     http://127.0.0.1:${config.port}`)
+// Loopback by default, because a local tool should not be on the network
+// because someone started it. A container has to bind 0.0.0.0 to be reachable
+// at all, so that is configuration rather than a default.
+const host = process.env.HOST ?? '127.0.0.1'
+
+const server = app.listen(config.port, host, () => {
+  console.log(`  server     http://${host === '0.0.0.0' ? 'localhost' : host}:${config.port}`)
   console.log(`  inference  ${config.ollamaBaseUrl}`)
   console.log(`  extract    ${config.roles.extract?.model ?? '(unconfigured)'}`)
   // Printed because a silently-unloaded .env is the failure this replaced: the
