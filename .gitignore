@@ -38,7 +38,3 @@ data/
 !packages/eval/fixtures/**
 !packages/eval/labels.json
 
-# Session scaffolding, not part of the project.
-*.local.md
-*.local.md
-*.local.md
