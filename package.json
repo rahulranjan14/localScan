@@ -16,7 +16,7 @@
     "dev:worker": "npm run dev -w @ocr/worker",
     "dev:web": "npm run dev -w @ocr/web",
     "temporal": "temporal server start-dev --db-filename data/temporal/dev.db --ui-port 8233",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @ocr/shared && npm run build -w @ocr/core && npm run build -w @ocr/server && npm run build -w @ocr/worker && npm run build -w @ocr/eval && npm run build -w @ocr/web",
     "typecheck": "tsc --build --force",
     "test": "vitest run",
     "test:watch": "vitest",
