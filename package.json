@@ -1,5 +1,5 @@
 {
-  "name": "agentic-ocr",
+  "name": "localscan",
   "version": "0.1.0",
   "private": true,
   "description": "Local-first document intelligence. PDF in, validated typed JSON out.",

@@ -1,4 +1,4 @@
-# Product Requirements Document — agentic-ocr
+# Product Requirements Document — localScan
 
 | | |
 |---|---|

@@ -8,7 +8,7 @@
 # memory and GPU, and containerising Ollama to reach back out would be slower and
 # no more reproducible. Point OLLAMA_BASE_URL at wherever they run.
 
-name: agentic-ocr
+name: localscan
 
 services:
   postgres:

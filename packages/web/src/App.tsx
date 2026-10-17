@@ -55,7 +55,7 @@ export function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>agentic-ocr</h1>
+        <h1>localScan</h1>
         <button
           className="subtle"
           title={

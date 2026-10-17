@@ -1,4 +1,4 @@
-# Functional Requirements Document — agentic-ocr
+# Functional Requirements Document — localScan
 
 | | |
 |---|---|

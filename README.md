@@ -1,6 +1,7 @@
-# agentic-ocr
+# localScan
 
-A local-first document intelligence application. PDF in, validated typed JSON out.
+Local-first document extraction. PDFs in, validated typed JSON out, every model
+running on hardware you control.
 
 Every model runs on hardware you control. In the default configuration nothing
 leaves your network.
@@ -136,7 +137,7 @@ OLLAMA_HOST=0.0.0.0 ollama serve
 **2. The application.**
 
 ```bash
-git clone <this repo> && cd agentic-ocr
+git clone <this repo> && cd localScan
 cp .env.example .env
 docker compose up
 ```
