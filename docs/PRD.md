@@ -49,7 +49,7 @@ decisions.
 |---|---|
 | Authentication / multi-tenancy | The trust boundary is the user's own machine and LAN. Auth on a single-user local tool is theatre, and it is where the predecessor system spent most of its effort for no user-visible benefit. |
 | Email / inbox ingestion | Orthogonal to document understanding. Costs OAuth, scheduling and credential storage; demonstrates nothing this project is about. |
-| Cloud deployment, Kubernetes | Local-first is the product. There is no deployment story to build. |
+| Cloud deployment, Kubernetes | Local-first is the product. There is no deployment story to build. The containers added later are for reproducible local setup -- one command instead of installing Postgres, pgvector and Temporal by hand -- and not a step toward hosting this anywhere. |
 | An LLM planning loop over extraction | Extraction is a fixed sequence of steps. Model-chosen control flow here would add nondeterminism and no capability. Autonomy belongs in classification and retrieval, where it is earned. |
 | Retention / archival policy | Single user, local disk. Deleting the data directory is the retention policy. |
 | Horizontal scale, queuing for throughput | One user, a handful of documents at a time. Durability matters; throughput does not. |

@@ -280,7 +280,19 @@ export class OllamaProvider implements LlmProvider {
       { method: 'GET' },
       PING_TIMEOUT_MS,
     )
-    return (result.models ?? []).map((m) => ({ name: m.name, sizeBytes: m.size }))
+    // One row per name, because the host reports one per runner.
+    //
+    // Ollama lists a model once for each runner that can serve it, with its own
+    // digest and a size differing by a few megabytes -- gemma3:12b appears at
+    // 8.1 GB under ggml and 8.2 GB under llamacpp. A role is bound by name, so
+    // the second row offers no choice and reads as a duplicate. The larger size
+    // is kept: it is the one that has to fit.
+    const largestByName = new Map<string, number>()
+    for (const model of result.models ?? []) {
+      const seen = largestByName.get(model.name)
+      if (seen === undefined || model.size > seen) largestByName.set(model.name, model.size)
+    }
+    return [...largestByName].map(([name, sizeBytes]) => ({ name, sizeBytes }))
   }
 
   /**
