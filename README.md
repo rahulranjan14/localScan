@@ -26,8 +26,9 @@ including the ones that were wrong and the measurements that were worse than
 hoped.
 
 **It is not a product, and should not be run unattended.** The numbers are in
-[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) and the headline is 71.9% F1 across
-five invoice fixtures. A document that needs checking is marked for checking
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) and the headline is 63.5% F1 across
+five labelled invoice fixtures — it was 71.9% across seven until two were
+withdrawn, and run 011 records why the number moved without the system changing. A document that needs checking is marked for checking
 rather than quietly stored, which is the design answering the accuracy rather
 than hiding it.
 
@@ -61,9 +62,13 @@ Upload a PDF — digital or scanned — and get editable, schema-validated JSON.
   there is no schema an edit could be validated against.
 - **Content-addressed.** Files keyed by SHA-256, so re-uploading returns the
   stored result — 0.04s against 188s.
-- **Validated or refused.** Output validates against the schema or the document
-  is stored `needs_review` with no structured data. A partial result is never
-  presented as fact.
+- **Validated or refused — which is not the same as correct.** Output validates
+  against the schema or the document is stored `needs_review` with no structured
+  data, and a partial result is never presented as fact. Validation answers
+  whether the shape is right, never whether the values are true: a model can
+  return a perfectly well-formed invoice number that is not on the page, and
+  measurably does. That gap is what the plausibility checks and the review screen
+  exist for.
 - **Side-by-side review.** Document left, fields right, scrolling independently.
   The form is generated from the type's layout, so no document type has a
   hand-written screen.
@@ -149,6 +154,12 @@ it to more than loopback:
 ollama pull qwen2.5:3b && ollama pull nomic-embed-text && ollama pull qwen2.5vl:3b
 OLLAMA_HOST=0.0.0.0 ollama serve
 ```
+
+`0.0.0.0` binds Ollama to **every** interface, not just the container bridge, so
+anyone who can reach your machine can use your models and read what you send
+them. Ollama has no authentication. On a home or office network that is usually
+acceptable; on a shared or public one it is not, and you should bind it to the
+Docker bridge address instead or run the stack against a host you control.
 
 **2. The application.**
 
@@ -320,4 +331,8 @@ written.
 
 ## Licence
 
-Not yet determined.
+MIT — see [`LICENSE`](LICENSE).
+
+The models are not covered by it. Each carries its own terms from whoever
+published it, and Gemma and Llama in particular have use restrictions worth
+reading before anything commercial.
