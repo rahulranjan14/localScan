@@ -203,10 +203,11 @@ database and the stored documents.
 
 
 
-Two machines are assumed: this one runs the application, another on your LAN runs
-the models. Both on one machine works too — point the base URL at localhost.
+Two hosts are assumed: the application host runs the API, the database and the
+worker; the inference host runs the models. One machine doing both works too —
+point the base URL at localhost.
 
-**On the inference machine**
+**On the inference host**
 
 ```bash
 # Ollama binds to localhost by default, so it needs this to accept LAN traffic
@@ -214,7 +215,11 @@ OLLAMA_HOST=0.0.0.0 ollama serve
 ollama pull qwen2.5:3b
 ```
 
-**On this machine**
+**On the application host**
+
+The commands below are macOS with Homebrew; the equivalents differ elsewhere,
+and pgvector needs building from source against PostgreSQL 14 (`D-011`). The
+container path avoids both.
 
 ```bash
 brew services start postgresql@14
@@ -233,7 +238,7 @@ npm run dev                     # server :3000 · worker · interface :5173
 accepted and then never runs — Temporal holds it and nothing executes it — so the
 server checks at startup and says so plainly rather than leaving you to wonder.
 
-On **macOS with inference on another machine**, run the forwarder first and point
+On **macOS with the models on another machine**, run the forwarder first and point
 `OLLAMA_BASE_URL` at loopback. macOS gates local-network access per application,
 and a tool running inside an editor is usually not granted it:
 
